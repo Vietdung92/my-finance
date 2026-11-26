@@ -177,6 +177,22 @@ test('API', { skip: !URL_DB && 'chưa đặt TEST_DATABASE_URL' }, async (t) => 
     assert.equal((await D('DELETE', `/api/khoan/${id}`)).s, 200);
   });
 
+  await t.test('vân tay / khuôn mặt (passkey): mở công khai đúng 2 địa chỉ, chặn dữ liệu giả', async () => {
+    const r = await fetch(base + '/api/passkey/vao/bat-dau', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    assert.equal(r.status, 200);
+    const opt = await r.json();
+    assert.ok(opt.challenge && opt.userVerification === 'required');
+    const gia = { id: 'abc', rawId: 'abc', type: 'public-key', response: { clientDataJSON: Buffer.from(JSON.stringify({ challenge: 'khong-co' })).toString('base64url') } };
+    const r2 = await fetch(base + '/api/passkey/vao/xong', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ phan_hoi: gia }) });
+    assert.equal(r2.status, 400);
+    assert.equal(r2.headers.get('set-cookie'), null);
+    assert.equal((await fetch(base + '/api/passkey')).status, 401, 'danh sách máy phải đăng nhập');
+    const dk = await D('POST', '/api/passkey/dang-ky/bat-dau', {});
+    assert.equal(dk.s, 200); assert.equal(dk.j.user.name, 'dung'); assert.equal(dk.j.authenticatorSelection.residentKey, 'required');
+    assert.deepEqual((await D('GET', '/api/passkey')).j, []);
+    assert.equal((await T('POST', '/api/passkey/xoa', { id: 'khong-co' })).s, 404);
+  });
+
   await t.test('đổi mật khẩu đăng xuất phiên cũ', async () => {
     const r = await D('POST', '/api/doi-mat-khau', { cu: 'matkhau-thu-123', moi: 'matkhau-moi-456' });
     assert.equal(r.s, 200);

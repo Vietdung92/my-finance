@@ -219,3 +219,6 @@ input[type=radio],input[type=checkbox]{accent-color:var(--accent)}
 .hero-bar i{display:block;height:100%;background:var(--accent);border-radius:99px}
 .tile.big .val{color:var(--crit)}
 @media (max-width:860px){.hero:not(.co-loi){grid-template-columns:1fr 1fr}.hero.co-loi .tile:last-child{grid-column:1/-1}}
+/* mở bằng vân tay / khuôn mặt */
+.pk-hoac{text-align:center;font-size:.84rem;margin:2px 0}
+.pk-may{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.86rem;padding:6px 0;border-top:1px dashed var(--line)}
