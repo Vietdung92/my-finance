@@ -275,6 +275,7 @@
   function nen() { Chart.defaults.font.family = css('--f-body'); Chart.defaults.color = css('--muted'); }
   function veDongTien(labels, thu, chi) {
     nen(); charts.cf && charts.cf.destroy();
+    const trong = ![...thu, ...chi].some(Boolean); // chưa có khoản nào: giữ trục ±1 triệu, khỏi hiện "1 đ, 1 đ"
     charts.cf = new Chart($('cf'), {
       type: 'bar',
       data: { labels, datasets: [
@@ -282,7 +283,7 @@
         { label: 'Phải trả', data: chi, backgroundColor: css('--debt'), borderRadius: 4, borderSkipped: 'start', stack: 's' }] },
       options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${m(Math.abs(c.raw))}`, footer: (it) => 'Ròng: ' + m(it.reduce((a, i) => a + i.raw, 0)) } } },
-        scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, grid: { color: css('--line') }, border: { display: false }, ticks: { callback: (v) => m(v) } } } },
+        scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ...(trong ? { min: -1e6, max: 1e6 } : {}), grid: { color: css('--line') }, border: { display: false }, ticks: { callback: (v) => m(v) } } } },
     });
   }
   function veCoCau(g) {
