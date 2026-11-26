@@ -23,20 +23,21 @@ Kỳ đã qua: khoản bật "tự coi là đã trả" (ngân hàng trừ tự �
 
 ## Cài lần đầu trên máy chủ (một lần)
 1. AZDIGI: thêm bản ghi **A** tên `taichinh` trỏ về `103.221.222.172`.
-2. Trong PowerShell (dán nguyên một dòng):
+2. Tạo deploy key trên máy chủ (bí danh `github-my-finance` trong `/root/.ssh/config`, key `/root/.ssh/deploy_my_finance`), gắn phần `.pub` vào GitHub › Settings › Deploy keys (chỉ đọc).
+3. Trên máy chủ (Termius, đã đăng nhập sẵn):
 ```
-ssh root@103.221.222.172 'U=$(git -C /root/kho/app-quan-ly remote get-url origin); git clone "${U/app-quan-ly/my-finance}" /root/kho/my-finance && bash /root/kho/my-finance/trien-khai/cai-dat.sh'
+git clone git@github-my-finance:Vietdung92/my-finance.git /root/kho/my-finance && bash /root/kho/my-finance/trien-khai/cai-dat.sh
 ```
 Mật khẩu 2 tài khoản in ra cuối lệnh và lưu ở `/root/my-finance-tai-khoan.txt` trên máy chủ.
 
 ## Cập nhật bản mới (sau khi gộp Pull Request)
 ```
-ssh root@103.221.222.172 "bash /root/kho/my-finance/trien-khai/cap-nhat.sh"
+bash /root/kho/my-finance/trien-khai/cap-nhat.sh
 ```
 
 ## Cấp lại mật khẩu
 ```
-ssh root@103.221.222.172 "cd /var/www/my-finance; node scripts/tao-nguoi-dung.js dung Dũng xem"
+cd /var/www/my-finance && node scripts/tao-nguoi-dung.js dung "Dũng" xem
 ```
 
 ## Chạy thử trên máy (cho người viết code)
