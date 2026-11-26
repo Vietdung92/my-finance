@@ -213,3 +213,9 @@ td .chip{display:inline-flex;padding:2px 8px;font-size:.76rem}
 
 /* radio, checkbox theo màu cam */
 input[type=radio],input[type=checkbox]{accent-color:var(--accent)}
+/* màn chính tập trung nợ */
+.hero:not(.co-loi){grid-template-columns:1.4fr 1fr 1fr}
+.hero-bar{height:8px;border-radius:99px;background:var(--accent-soft);overflow:hidden;margin:4px 0 2px}
+.hero-bar i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.tile.big .val{color:var(--crit)}
+@media (max-width:860px){.hero:not(.co-loi){grid-template-columns:1fr 1fr}.hero.co-loi .tile:last-child{grid-column:1/-1}}
