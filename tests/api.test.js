@@ -43,7 +43,7 @@ test('API', { skip: !URL_DB && 'chưa đặt TEST_DATABASE_URL' }, async (t) => 
   await t.test('Tú thêm khoản cho Dũng và cho mình', async () => {
     const a = await T('POST', '/api/khoan', { chu_id: dung, nhom: 'no', ten: 'Vay mua căn hộ', doi_tac: 'Vietcombank', goc: 2e9, bat_dau: '2025-03-15', ky_han: 240, cach: 'goc_deu', lai: 7.5, ngay_chot: 15, tu_dong_da_tra: true, doi_lai: [{ tu: '2027-03-15', lai: 10.5 }] });
     assert.equal(a.s, 200, JSON.stringify(a.j)); khDung = a.j.id;
-    const b = await T('POST', '/api/khoan', { chu_id: tu, nhom: 'chovay', ten: 'Cho vay', doi_tac: 'Anh Tuấn', goc: 150e6, bat_dau: '2025-09-05', ky_han: 24, cach: 'lai_thang', lai: 18 });
+    const b = await T('POST', '/api/khoan', { chu_id: tu, nhom: 'chovay', ten: 'Cho vay', doi_tac: 'Anh Tuấn', goc: 150e6, bat_dau: '2025-09-05', ky_han: 24, cach: 'lai_thang', lai: 18, chu_ky: 3 });
     assert.equal(b.s, 200); khTu = b.j.id;
   });
 
@@ -65,6 +65,8 @@ test('API', { skip: !URL_DB && 'chưa đặt TEST_DATABASE_URL' }, async (t) => 
     }
     const all = await T('GET', '/api/du-lieu');
     assert.equal(all.j.khoan.length, 2);
+    assert.equal(all.j.khoan.find((k) => k.id === khTu).chu_ky, 3);
+    assert.equal(d.j.khoan[0].chu_ky, 1);
   });
 
   await t.test('ghi nhận kỳ, sửa khoản, nhật ký có chi tiết', async () => {

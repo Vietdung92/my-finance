@@ -20,10 +20,13 @@
   const homNay = () => T.pd(new Date());
   const NHOM = { no: { ten: 'Đang nợ', c: '--debt' }, chovay: { ten: 'Cho vay', c: '--lend' }, dautu: { ten: 'Đầu tư', c: '--inv' } };
   const CACH = {
-    nien_kim: 'Trả đều hàng tháng (gốc + lãi cố định)', goc_deu: 'Gốc đều, lãi trên dư nợ giảm dần',
-    lai_thang: 'Lãi hàng tháng, gốc trả cuối kỳ', khong_lai: 'Không lãi, trả gốc khi đến hạn',
-    tiet_kiem: 'Tiết kiệm: lãi + gốc nhận khi đáo hạn', chia_quy: 'Chia lợi nhuận mỗi quý', tai_san: 'Tài sản (nhà, đất...), theo giá ước tính',
+    nien_kim: 'Trả đều mỗi kỳ (gốc + lãi, số tiền cố định)', goc_deu: 'Gốc chia đều mỗi kỳ, lãi trên dư nợ giảm dần',
+    lai_thang: 'Chỉ trả lãi mỗi kỳ, gốc trả một lần cuối', khong_lai: 'Không lãi, trả gốc khi đến hạn',
+    tiet_kiem: 'Tiết kiệm: lãi + gốc nhận khi đáo hạn', tai_san: 'Tài sản (nhà, đất...), theo giá ước tính',
   };
+
+  const CHU_KY = { 1: 'Mỗi tháng', 3: 'Mỗi quý (3 tháng)', 6: 'Mỗi 6 tháng', 12: 'Mỗi năm' };
+  const CO_CHU_KY = ['goc_deu', 'nien_kim', 'lai_thang'];
 
   /* ---------- gọi máy chủ ---------- */
   async function api(method, url, body) {
@@ -326,7 +329,7 @@
         <div><span>${k.cach === 'tai_san' ? 'Giá ước tính' : 'Còn lại'}</span><b class="num">${m(k.conLai)}</b></div>
         <div><span>Lãi suất</span><b>${laiTxt}${(k.doi_lai || []).length ? ` → ${k.doi_lai.map((x) => x.lai + '%').join(' → ')}` : ''}</b></div>
         <div><span>Bắt đầu</span><b>${dd(k.bat_dau)}</b></div>
-        <div><span>Ngày chốt lãi</span><b>${k.ngay_chot ? 'Ngày ' + k.ngay_chot + ' hàng tháng' : k.lich.length ? 'Theo ngày bắt đầu' : '—'}</b></div>
+        <div><span>Kỳ trả</span><b>${k.ngay_chot ? 'Ngày ' + k.ngay_chot : k.lich.length ? 'Theo ngày bắt đầu' : '—'}${CO_CHU_KY.includes(k.cach) ? ', ' + CHU_KY[k.chu_ky || 1].toLowerCase() : ''}</b></div>
         <div><span>Đáo hạn</span><b>${k.daoHan ? dd(k.daoHan) : '—'}</b></div>
         <div><span>${k.cach === 'tai_san' ? 'Chênh lệch' : 'Tổng lãi cả kỳ'}</span><b class="num">${k.cach === 'tai_san' ? m(k.gia_tri - k.goc) : m(k.tongLai)}</b></div>
         ${k.cach === 'tai_san' ? '' : `<div><span>Kỳ đã qua</span><b>${k.tu_dong_da_tra ? 'Tự coi là đã trả' : 'Phải ghi nhận'}</b></div>`}
@@ -372,7 +375,8 @@
       <div class="f2"><div><label for="fGoc">Số tiền gốc (đồng)</label><input id="fGoc" inputmode="numeric" value="${v.goc ? Number(v.goc).toLocaleString('vi-VN') : ''}" placeholder="500.000.000"></div><div><label for="fBd">Ngày bắt đầu</label><input id="fBd" type="date" value="${esc(v.bat_dau)}"></div></div>
       <div class="f2" id="gGt"><div><label for="fGt">Giá ước tính hiện nay (đồng)</label><input id="fGt" inputmode="numeric" value="${v.gia_tri ? Number(v.gia_tri).toLocaleString('vi-VN') : ''}"></div></div>
       <div id="gKy">
-        <div class="f2"><div><label for="fKy">Kỳ hạn (tháng)</label><input id="fKy" inputmode="numeric" value="${esc(v.ky_han || '')}"></div><div><label for="fChot">Ngày chốt lãi hàng tháng</label><input id="fChot" inputmode="numeric" value="${esc(v.ngay_chot || '')}" placeholder="Trống = theo ngày bắt đầu"></div></div>
+        <div class="f2"><div><label for="fKy">Kỳ hạn (tháng)</label><input id="fKy" inputmode="numeric" value="${esc(v.ky_han || '')}"></div><div id="gChuKy"><label for="fChuKy">Trả gốc / lãi</label><select id="fChuKy">${Object.keys(CHU_KY).map((c) => `<option value="${c}" ${Number(v.chu_ky || 1) === Number(c) ? 'selected' : ''}>${CHU_KY[c]}</option>`).join('')}</select></div></div>
+        <div class="f2" style="margin-top:8px"><div><label for="fChot">Ngày chốt (ngày mấy trong tháng)</label><input id="fChot" inputmode="numeric" value="${esc(v.ngay_chot || '')}" placeholder="Trống = theo ngày bắt đầu"></div><div></div></div>
         <div class="f2" id="gLai" style="margin-top:8px"><div><label for="fLai">Lãi suất</label><input id="fLai" inputmode="decimal" value="${esc(laiHien)}" placeholder="10,5"></div><div><label for="fDv">Đơn vị</label><select id="fDv"><option value="nam" ${v.don_vi_lai !== 'thang' ? 'selected' : ''}>%/năm</option><option value="thang" ${v.don_vi_lai === 'thang' ? 'selected' : ''}>%/tháng</option></select></div></div>
         <div id="gDoi" style="margin-top:8px"><label>Lãi suất thay đổi (hết ưu đãi, thả nổi...)</label><div id="doiLai" style="display:flex;flex-direction:column;gap:8px;margin-top:6px"></div>
           <button type="button" class="btn sm ghost" id="themDoi" style="margin-top:6px">+ Thêm lần đổi lãi</button></div>
@@ -398,7 +402,7 @@
       return {
         nhom: document.querySelector('input[name=nhom]:checked').value, chu_id: Number(document.querySelector('input[name=chu]:checked')?.value),
         ten: $('fTen').value, doi_tac: $('fDt').value, cach, goc: soTien($('fGoc').value), bat_dau: $('fBd').value,
-        ky_han: Number($('fKy').value) || 0, ngay_chot: $('fChot').value.trim() === '' ? null : Number($('fChot').value),
+        ky_han: Number($('fKy').value) || 0, chu_ky: CO_CHU_KY.includes(cach) ? Number($('fChuKy').value) : 1, ngay_chot: $('fChot').value.trim() === '' ? null : Number($('fChot').value),
         lai: dv === 'thang' ? r0 * 12 : r0, don_vi_lai: dv, gia_tri: cach === 'tai_san' ? soTien($('fGt').value) : null,
         doi_lai: [...$('doiLai').children].map((d) => ({ tu: d.querySelector('.dTu').value, lai: soThapPhan(d.querySelector('.dLai').value) })).filter((x) => x.tu),
         tu_dong_da_tra: $('fTd').checked, ghi_chu: $('fGc').value,
@@ -407,7 +411,8 @@
     const hien = () => {
       const c = $('fCach').value;
       $('gGt').hidden = c !== 'tai_san'; $('gKy').hidden = c === 'tai_san';
-      $('gLai').hidden = c === 'khong_lai'; $('gDoi').hidden = !['goc_deu', 'nien_kim', 'lai_thang', 'chia_quy'].includes(c);
+      $('gChuKy').style.visibility = CO_CHU_KY.includes(c) ? 'visible' : 'hidden';
+      $('gLai').hidden = c === 'khong_lai'; $('gDoi').hidden = !['goc_deu', 'nien_kim', 'lai_thang'].includes(c);
     };
     function xemTruoc() {
       hien();

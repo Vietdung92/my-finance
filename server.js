@@ -15,8 +15,9 @@ const { migrate } = require('./db/migrate');
 
 const COOKIE = 'mf_phien';
 const NHOM = ['no', 'chovay', 'dautu'];
-const CACH = ['goc_deu', 'nien_kim', 'lai_thang', 'khong_lai', 'tiet_kiem', 'chia_quy', 'tai_san'];
-const CACH_TEN = { goc_deu: 'gốc đều', nien_kim: 'trả đều', lai_thang: 'lãi tháng, gốc cuối kỳ', khong_lai: 'không lãi', tiet_kiem: 'tiết kiệm', chia_quy: 'chia lợi nhuận quý', tai_san: 'tài sản' };
+const CACH = ['goc_deu', 'nien_kim', 'lai_thang', 'khong_lai', 'tiet_kiem', 'tai_san'];
+const CHU_KY_TEN = { 1: 'tháng', 3: 'quý', 6: '6 tháng', 12: 'năm' };
+const CACH_TEN = { goc_deu: 'gốc đều', nien_kim: 'trả đều', lai_thang: 'chỉ trả lãi, gốc cuối kỳ', khong_lai: 'không lãi', tiet_kiem: 'tiết kiệm', chia_quy: 'chia lợi nhuận quý', tai_san: 'tài sản' };
 
 class Loi extends Error { constructor(ma, tin) { super(tin); this.ma = ma; } }
 const sai = (tin) => new Loi(400, tin);
@@ -54,6 +55,7 @@ function docKhoan(b, nguoiIds) {
     ky_han: cach === 'tai_san' ? 0 : Math.round(so(b.ky_han, 'Kỳ hạn (tháng)', 1, 600)),
     lai: ['tai_san', 'khong_lai'].includes(cach) ? 0 : so(b.lai, 'Lãi suất %/năm', 0, 200),
     don_vi_lai: b.don_vi_lai === 'thang' ? 'thang' : 'nam',
+    chu_ky: ['goc_deu', 'nien_kim', 'lai_thang'].includes(cach) && [1, 3, 6, 12].includes(Number(b.chu_ky)) ? Number(b.chu_ky) : 1,
     ngay_chot: b.ngay_chot == null || b.ngay_chot === '' ? null : Math.round(so(b.ngay_chot, 'Ngày chốt lãi', 1, 31)),
     tu_dong_da_tra: !!b.tu_dong_da_tra,
     gia_tri: cach === 'tai_san' ? tien(b.gia_tri ?? b.goc, 'Giá ước tính') : null,
@@ -163,7 +165,7 @@ function createApp(pool, opt = {}) {
     return k;
   };
   const themDanhBa = (ten) => q('INSERT INTO doi_tac (ten) VALUES ($1) ON CONFLICT DO NOTHING', [ten]);
-  const COT = ['chu_id', 'nhom', 'ten', 'doi_tac', 'goc', 'bat_dau', 'ky_han', 'cach', 'lai', 'don_vi_lai', 'doi_lai', 'ngay_chot', 'tu_dong_da_tra', 'gia_tri', 'ghi_chu'];
+  const COT = ['chu_id', 'nhom', 'ten', 'doi_tac', 'goc', 'bat_dau', 'ky_han', 'chu_ky', 'cach', 'lai', 'don_vi_lai', 'doi_lai', 'ngay_chot', 'tu_dong_da_tra', 'gia_tri', 'ghi_chu'];
   const val = (kh) => COT.map((c) => (c === 'doi_lai' ? JSON.stringify(kh[c]) : kh[c]));
 
   app.post('/api/khoan', canNhap, async (req, res, next) => {
@@ -190,6 +192,7 @@ function createApp(pool, opt = {}) {
       if (toIso(cu.bat_dau) !== kh.bat_dau) doi.push(`ngày bắt đầu ${ddmm(toIso(cu.bat_dau))} → ${ddmm(kh.bat_dau)}`);
       if (so2(cu.ky_han, kh.ky_han)) doi.push(`kỳ hạn ${cu.ky_han} → ${kh.ky_han} tháng`);
       if ((cu.ngay_chot || null) !== kh.ngay_chot) doi.push(`ngày chốt lãi ${cu.ngay_chot || '—'} → ${kh.ngay_chot || '—'}`);
+      if ((cu.chu_ky || 1) !== kh.chu_ky) doi.push(`trả mỗi ${CHU_KY_TEN[cu.chu_ky || 1]} → ${CHU_KY_TEN[kh.chu_ky]}`);
       if (cu.cach !== kh.cach) doi.push(`cách trả ${CACH_TEN[cu.cach]} → ${CACH_TEN[kh.cach]}`);
       if (JSON.stringify(cu.doi_lai) !== JSON.stringify(kh.doi_lai)) doi.push('lịch đổi lãi suất');
       if (so2(cu.gia_tri || 0, kh.gia_tri || 0)) doi.push(`giá ước tính ${fmt(cu.gia_tri || 0)} → ${fmt(kh.gia_tri || 0)}`);

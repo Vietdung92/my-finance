@@ -37,15 +37,28 @@
     return r;
   }
 
-  /* Lịch trả từng kỳ. Mỗi kỳ: { ngay, goc, lai, du (dư gốc sau kỳ), lai_suat } */
+  /* Các mốc kỳ trả, tính bằng số tháng từ ngày bắt đầu: c, 2c, 3c... và kỳ cuối luôn là tháng thứ n
+   * (kỳ hạn không chia hết cho chu kỳ thì kỳ cuối ngắn hơn). */
+  function cacMoc(n, c) {
+    const out = [];
+    for (let k = c; k < n; k += c) out.push(k);
+    if (n > 0) out.push(n);
+    return out;
+  }
+
+  /* Lịch trả từng kỳ. Mỗi kỳ: { ngay, goc, lai, du (dư gốc sau kỳ), lai_suat }
+   * chu_ky: số tháng giữa 2 kỳ trả (1 tháng, 3 quý, 6 nửa năm, 12 năm), áp dụng cho goc_deu, nien_kim, lai_thang. */
   function lichTra(kh) {
     const P = Number(kh.goc), n = Number(kh.ky_han) || 0, out = [];
     const ky = (k) => ngayKy(kh.bat_dau, k, kh.ngay_chot);
-    switch (kh.cach) {
+    let cach = kh.cach, c = [1, 3, 6, 12].includes(Number(kh.chu_ky)) ? Number(kh.chu_ky) : 1;
+    if (cach === 'chia_quy') { cach = 'lai_thang'; c = 3; } // dữ liệu cũ
+    const moc = cacMoc(n, c);
+    switch (cach) {
       case 'goc_deu': { // gốc chia đều, lãi tính trên dư nợ theo số ngày thực tế / 365 (cách ngân hàng VN tính)
         let du = P, truoc = pd(kh.bat_dau);
-        const g = P / n;
-        for (let k = 1; k <= n; k++) {
+        const g = P / moc.length;
+        for (const k of moc) {
           const d = ky(k), r = laiTai(kh, truoc);
           const lai = du * r / 100 * soNgay(truoc, d) / 365;
           du -= g;
@@ -54,25 +67,25 @@
         }
         break;
       }
-      case 'nien_kim': { // trả đều mỗi tháng; lãi đổi thì tính lại số tiền trả đều trên dư nợ và số kỳ còn lại
-        let du = P, truoc = pd(kh.bat_dau), rCu = null, tra = 0;
-        for (let k = 1; k <= n; k++) {
-          const d = ky(k), rNam = laiTai(kh, truoc), r = rNam / 100 / 12;
-          if (r !== rCu) { const con = n - k + 1; tra = r === 0 ? du / con : du * r / (1 - Math.pow(1 + r, -con)); rCu = r; }
+      case 'nien_kim': { // trả đều mỗi kỳ; lãi đổi thì tính lại số tiền trả đều trên dư nợ và số kỳ còn lại
+        let du = P, truoc = 0, rCu = null, tra = 0;
+        moc.forEach((k, i) => {
+          const d = ky(k), rNam = laiTai(kh, truoc ? ky(truoc) : kh.bat_dau), rKy = rNam / 100 / 12 * c, r = rNam / 100 / 12 * (k - truoc);
+          if (rKy !== rCu) { const con = moc.length - i; tra = rKy === 0 ? du / con : du * rKy / (1 - Math.pow(1 + rKy, -con)); rCu = rKy; }
           const lai = du * r;
-          const g = k === n ? du : tra - lai;
+          const g = i === moc.length - 1 ? du : tra - lai;
           du -= g;
           out.push({ ngay: d, goc: g, lai, du: Math.max(du, 0), lai_suat: rNam });
-          truoc = d;
-        }
+          truoc = k;
+        });
         break;
       }
-      case 'lai_thang': { // trả lãi hàng tháng trên số gốc, gốc trả một lần cuối kỳ
-        let truoc = pd(kh.bat_dau);
-        for (let k = 1; k <= n; k++) {
-          const d = ky(k), r = laiTai(kh, truoc);
-          out.push({ ngay: d, goc: k === n ? P : 0, lai: P * r / 100 / 12, du: k === n ? 0 : P, lai_suat: r });
-          truoc = d;
+      case 'lai_thang': { // chỉ trả lãi mỗi kỳ trên số gốc, gốc trả một lần ở kỳ cuối
+        let truoc = 0;
+        for (const k of moc) {
+          const d = ky(k), r = laiTai(kh, truoc ? ky(truoc) : kh.bat_dau);
+          out.push({ ngay: d, goc: k === n ? P : 0, lai: P * r / 100 / 12 * (k - truoc), du: k === n ? 0 : P, lai_suat: r });
+          truoc = k;
         }
         break;
       }
@@ -82,15 +95,6 @@
       case 'tiet_kiem': { // lãi đơn, nhận cả gốc và lãi khi đáo hạn
         const r = laiTai(kh, kh.bat_dau);
         if (n) out.push({ ngay: ky(n), goc: P, lai: P * r / 100 * n / 12, du: 0, lai_suat: r });
-        break;
-      }
-      case 'chia_quy': { // chia lợi nhuận mỗi quý, gốc nhận lại cuối kỳ
-        let truoc = pd(kh.bat_dau);
-        for (let k = 3; k <= n; k += 3) {
-          const d = ky(k), r = laiTai(kh, truoc);
-          out.push({ ngay: d, goc: k >= n ? P : 0, lai: P * r / 100 / 4, du: k >= n ? 0 : P, lai_suat: r });
-          truoc = d;
-        }
         break;
       }
       default: break; // tai_san: không có dòng tiền
@@ -165,5 +169,5 @@
     };
   }
 
-  return { pd, iso, soNgay, ngayKy, laiTai, lichTra, tomTat, noiBo };
+  return { pd, iso, soNgay, ngayKy, cacMoc, laiTai, lichTra, tomTat, noiBo };
 });
