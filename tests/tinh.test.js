@@ -80,3 +80,28 @@ test('mượn nội bộ, lãi cố định theo tháng tròn trên gốc ban đ
   gan(het.laiPS, 60e6 * 0.01 * 1); // chỉ tháng 1/9 trước khi trả hết
   assert.equal(het.gocCon, 0);
 });
+
+test('trả theo quý / năm: chỉ trả lãi, gốc đều, trả đều', () => {
+  const lt = T.lichTra({ goc: 120e6, bat_dau: '2026-01-10', ky_han: 12, cach: 'lai_thang', lai: 12, chu_ky: 3 });
+  assert.deepEqual(lt.map((e) => T.iso(e.ngay)), ['2026-04-10', '2026-07-10', '2026-10-10', '2027-01-10']);
+  lt.forEach((e) => gan(e.lai, 3.6e6));
+  assert.deepEqual(lt.map((e) => e.goc), [0, 0, 0, 120e6]);
+
+  const gd = T.lichTra({ goc: 100e6, bat_dau: '2026-01-10', ky_han: 24, cach: 'goc_deu', lai: 10, chu_ky: 12 });
+  assert.deepEqual(gd.map((e) => [T.iso(e.ngay), e.goc]), [['2027-01-10', 50e6], ['2028-01-10', 50e6]]);
+  gan(gd[0].lai, 100e6 * 0.1 * 365 / 365);
+  gan(gd[1].lai, 50e6 * 0.1 * 365 / 365);
+
+  // kỳ hạn 10 tháng, trả mỗi quý: kỳ cuối ngắn (1 tháng), tổng gốc vẫn đủ
+  const nk = T.lichTra({ goc: 120e6, bat_dau: '2026-01-10', ky_han: 10, cach: 'nien_kim', lai: 12, chu_ky: 3 });
+  assert.deepEqual(nk.map((e) => T.iso(e.ngay)), ['2026-04-10', '2026-07-10', '2026-10-10', '2026-11-10']);
+  gan(nk.reduce((a, e) => a + e.goc, 0), 120e6);
+  gan(nk[0].goc + nk[0].lai, nk[1].goc + nk[1].lai);
+  gan(nk[0].lai, 120e6 * 0.03);
+
+  // trả mỗi tháng (mặc định) giữ nguyên như trước
+  const a = T.lichTra({ goc: 300e6, bat_dau: '2025-06-10', ky_han: 36, cach: 'nien_kim', lai: 14 });
+  const b = T.lichTra({ goc: 300e6, bat_dau: '2025-06-10', ky_han: 36, cach: 'nien_kim', lai: 14, chu_ky: 1 });
+  assert.deepEqual(a, b);
+  assert.equal(a.length, 36);
+});
