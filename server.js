@@ -47,7 +47,7 @@ const fmt = (n) => Math.round(Number(n)).toLocaleString('vi-VN') + ' đ';
 const ddmm = (s) => String(s).slice(0, 10).split('-').reverse().join('/');
 
 function docKhoan(b, nguoiIds) {
-  const nhom = b.nhom; if (!NHOM.includes(nhom)) throw sai('Loại khoản không hợp lệ.');
+  const nhom = b.nhom; if (!NHOM.includes(nhom)) throw sai(nhom ? 'Loại khoản không hợp lệ.' : 'Chọn loại khoản: Đi vay, Cho vay hay Đầu tư.');
   const cach = b.cach; if (!CACH.includes(cach)) throw sai('Cách trả không hợp lệ.');
   const chuId = Number(b.chu_id); if (!nguoiIds.includes(chuId)) throw sai('Chọn khoản này của ai.');
   const kh = {
