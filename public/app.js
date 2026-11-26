@@ -79,7 +79,7 @@
       <button class="btn" type="submit">Đăng nhập</button>
       ${coPasskey() ? `<div class="pk-hoac muted">hoặc</div><button class="btn ghost" type="button" id="lPk">${ICON_VT} Mở bằng vân tay / khuôn mặt</button>` : ''}</form></div>`;
     // Gửi form thường (tải lại trang) để máy hỏi lưu mật khẩu; chỉ khóa nút cho khỏi bấm 2 lần
-    $('lf').onsubmit = (e) => { e.target.querySelector('button').disabled = true; };
+    $('lf').onsubmit = (e) => { e.target.querySelector('button').disabled = true; danhDauMo(); };
     if (coPasskey()) $('lPk').onclick = moBangPasskey;
     // Máy này đã bật vân tay: không bật bàn phím, để anh bấm nút vân tay luôn
     if (!(coPasskey() && daBatPk())) $('lTen').focus();
@@ -98,7 +98,7 @@
       const opt = await api('POST', '/api/passkey/vao/bat-dau', {});
       const phanHoi = await SimpleWebAuthnBrowser.startAuthentication({ optionsJSON: opt });
       await api('POST', '/api/passkey/vao/xong', { phan_hoi: phanHoi });
-      ghiBatPk(true);
+      ghiBatPk(true); danhDauMo();
       await taiLai();
     } catch (e) {
       if ($('lErr')) { $('lErr').textContent = loiPk(e); $('lErr').hidden = false; }
@@ -766,5 +766,23 @@
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dong(); });
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => D && veSoLieu());
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
-  taiLai().catch(() => { if (!D && !$('lf')) renderLogin(); });
+  /* ---------- tự đăng xuất (anh Dũng 27/11/2026) ----------
+   * Mỗi lần mở app mới (tắt hẳn rồi mở lại) hoặc để app chạy nền quá NGHI_TOI_DA thì đăng xuất,
+   * phải quét vân tay / khuôn mặt hoặc gõ mật khẩu lại. sessionStorage mất khi app bị tắt hẳn,
+   * còn giữ khi trang tải lại sau lúc đăng nhập. */
+  const NGHI_TOI_DA = 3 * 60e3;
+  function danhDauMo() { try { sessionStorage.setItem('mf-dang-mo', '1'); } catch (_) { /* bỏ qua */ } }
+  const dangMo = () => { try { return sessionStorage.getItem('mf-dang-mo') === '1'; } catch (_) { return false; } };
+  async function tuDangXuat() {
+    try { sessionStorage.removeItem('mf-dang-mo'); } catch (_) { /* bỏ qua */ }
+    try { await fetch('/api/dang-xuat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}', credentials: 'same-origin' }); } catch (_) { /* mất mạng: cookie vẫn bị bỏ lần sau */ }
+    D = null; dong(); renderLogin();
+  }
+  let anLuc = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { anLuc = Date.now(); return; }
+    if (D && anLuc && Date.now() - anLuc > NGHI_TOI_DA) tuDangXuat();
+  });
+  if (!dangMo()) tuDangXuat();
+  else taiLai().catch(() => { if (!D && !$('lf')) renderLogin(); });
 })();
