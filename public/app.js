@@ -57,17 +57,26 @@
   }
 
   /* ---------- đăng nhập ---------- */
+  // Nhờ máy lưu mật khẩu (Android Chrome hỏi ngay; iPhone Safari tự hỏi khi ô đăng nhập biến mất sau khi vào).
+  // Lần sau chạm vào ô tên đăng nhập, máy quét Face ID / vân tay rồi tự điền.
+  function luuMatKhau(id, password) {
+    try { if (window.PasswordCredential) navigator.credentials.store(new PasswordCredential({ id, password, name: id })).catch(() => {}); } catch (_) { /* máy không hỗ trợ */ }
+  }
   function renderLogin(loi) {
     $('app').innerHTML = `<div class="login"><form id="lf" class="pf panel" autocomplete="on">
       <img src="logo.svg" alt="" class="logo-lon"><h1>My Finance</h1><div class="muted">Đăng nhập để xem số liệu.</div>
-      <label for="lTen">Tên đăng nhập</label><input id="lTen" autocomplete="username" autocapitalize="none" required>
-      <label for="lMk">Mật khẩu</label><input id="lMk" type="password" autocomplete="current-password" required>
+      <label for="lTen">Tên đăng nhập</label><input id="lTen" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+      <label for="lMk">Mật khẩu</label><input id="lMk" name="password" type="password" autocomplete="current-password" required>
       <div class="out" id="lErr" ${loi ? '' : 'hidden'}>${esc(loi || '')}</div>
       <button class="btn" type="submit">Đăng nhập</button></form></div>`;
     $('lf').onsubmit = async (e) => {
       e.preventDefault();
       const b = e.target.querySelector('button'); b.disabled = true;
-      try { await api('POST', '/api/dang-nhap', { ten_dang_nhap: $('lTen').value, mat_khau: $('lMk').value }); await taiLai(); }
+      try {
+        await api('POST', '/api/dang-nhap', { ten_dang_nhap: $('lTen').value, mat_khau: $('lMk').value });
+        luuMatKhau($('lTen').value.trim().toLowerCase(), $('lMk').value);
+        await taiLai();
+      }
       catch (err) { if (!$('lErr')) { console.error(err); toast(err.message); return; } $('lErr').textContent = err.message; $('lErr').hidden = false; b.disabled = false; }
     };
     $('lTen').focus();
@@ -213,7 +222,7 @@
       if (e.ngay.getFullYear() !== y || e.ngay.getMonth() !== mo) return;
       if (k.nhom === 'no') { gocThang += e.goc; laiThang += e.lai; if (e.tt === 'xong') daTraThang += e.goc + e.lai; } else laiThu += e.lai;
     }));
-    let toi = null; cacNo.forEach((k) => { if (k.kyToi && (!toi || k.kyToi.ngay < toi.e.ngay)) toi = { k, e: k.kyToi }; });
+    let kyGan = null; cacNo.forEach((k) => { if (k.kyToi && (!kyGan || k.kyToi.ngay < kyGan.e.ngay)) kyGan = { k, e: k.kyToi }; });
     const soQuaHan = cacNo.reduce((a, k) => a + k.quaHan.length, 0);
     $('hero').className = 'hero panel' + (coLoi ? ' co-loi' : '');
     $('hero').innerHTML = `
@@ -223,8 +232,8 @@
         ${coLoi ? `<span class="sub">Tài sản ròng <b>${m(ts - no)}</b> (cho vay, đầu tư ${m(ts)} − nợ)</span>` : ''}</div>
       <div class="tile"><span class="lbl">Tháng ${mo + 1} phải trả</span><span class="val num out">${m(gocThang + laiThang)}</span>
         <span class="sub">Gốc ${m(gocThang)} · Lãi ${m(laiThang)}${daTraThang ? `<br>Đã trả ${m(daTraThang)}` : ''}</span></div>
-      <div class="tile"><span class="lbl">Kỳ trả tới</span>${toi
-        ? `<span class="val num">${m(toi.e.goc + toi.e.lai)}</span><span class="sub">${dd(toi.e.ngay)} · ${esc(toi.k.doi_tac)}${soQuaHan ? `<br><b class="out">${soQuaHan} kỳ quá hạn</b>` : ''}</span>`
+      <div class="tile"><span class="lbl">Kỳ trả tới</span>${kyGan
+        ? `<span class="val num">${m(kyGan.e.goc + kyGan.e.lai)}</span><span class="sub">${dd(kyGan.e.ngay)} · ${esc(kyGan.k.doi_tac)}${soQuaHan ? `<br><b class="out">${soQuaHan} kỳ quá hạn</b>` : ''}</span>`
         : `<span class="val num">—</span><span class="sub">${soQuaHan ? `<b class="out">${soQuaHan} kỳ quá hạn</b>` : 'Không còn kỳ nào'}</span>`}</div>
       ${coLoi ? `<div class="tile"><span class="lbl"><i class="dot" style="background:var(--lend)"></i>Cho vay + Đầu tư</span><span class="val num in">${m(ts)}</span><span class="sub">${nbThu ? `gồm ${m(nbThu)} người nhà đang nợ · ` : ''}lãi tháng ${mo + 1}: +${m(laiThu)}</span></div>` : ''}`;
 
@@ -692,11 +701,11 @@
 
   function moDoiMatKhau() {
     moSheet(`<h2 style="font-size:1.25rem">Đổi mật khẩu</h2>
-      <form id="mf" class="pf"><label for="mCu">Mật khẩu hiện tại</label><input id="mCu" type="password" autocomplete="current-password">
-      <label for="mMoi">Mật khẩu mới (ít nhất 8 ký tự)</label><input id="mMoi" type="password" autocomplete="new-password" minlength="8">
+      <form id="mf" class="pf"><input type="text" name="username" autocomplete="username" value="${esc(toi().ten_dang_nhap || '')}" hidden><label for="mCu">Mật khẩu hiện tại</label><input id="mCu" type="password" autocomplete="current-password">
+      <label for="mMoi">Mật khẩu mới (ít nhất 8 ký tự)</label><input id="mMoi" name="new-password" type="password" autocomplete="new-password" minlength="8">
       <div class="hint">Đổi xong, các máy khác đang đăng nhập tài khoản này sẽ phải đăng nhập lại.</div>
       <div class="out ferr" hidden></div><button class="btn" type="submit">Đổi mật khẩu</button></form>`);
-    $('mf').onsubmit = (e) => { e.preventDefault(); gui(e.target, () => api('POST', '/api/doi-mat-khau', { cu: $('mCu').value, moi: $('mMoi').value }), 'Đã đổi mật khẩu.'); };
+    $('mf').onsubmit = (e) => { e.preventDefault(); gui(e.target, () => api('POST', '/api/doi-mat-khau', { cu: $('mCu').value, moi: $('mMoi').value }).then((r) => { luuMatKhau(toi().ten_dang_nhap, $('mMoi').value); return r; }), 'Đã đổi mật khẩu.'); };
   }
 
   /* ---------- khởi động ---------- */
