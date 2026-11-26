@@ -169,5 +169,32 @@
     };
   }
 
-  return { pd, iso, soNgay, ngayKy, cacMoc, laiTai, lichTra, tomTat, noiBo };
+  /* Bộ lọc thời gian: khoảng [tu, den) của tháng / quý / năm chứa ngày moc, lùi tiến bằng buoc (-1, 0, 1...). */
+  function kyKhoang(loai, moc, buoc) {
+    const d = pd(moc), n = buoc || 0;
+    if (loai === 'nam') { const y = d.getFullYear() + n; return { tu: new Date(y, 0, 1), den: new Date(y + 1, 0, 1), ten: `Năm ${y}` }; }
+    if (loai === 'quy') {
+      const q0 = Math.floor(d.getMonth() / 3) + n, t = new Date(d.getFullYear(), q0 * 3, 1);
+      return { tu: t, den: new Date(t.getFullYear(), t.getMonth() + 3, 1), ten: `Quý ${Math.floor(t.getMonth() / 3) + 1}/${t.getFullYear()}` };
+    }
+    const t = new Date(d.getFullYear(), d.getMonth() + n, 1);
+    return { tu: t, den: new Date(t.getFullYear(), t.getMonth() + 1, 1), ten: `Tháng ${t.getMonth() + 1}/${t.getFullYear()}` };
+  }
+
+  /* Cộng các kỳ trả (đã có tt từ tomTat) rơi vào [tu, den): tiền ra (khoản nợ) và tiền vào (cho vay, đầu tư). */
+  function tongKy(khoan, tu, den) {
+    const r = { laiTra: 0, gocTra: 0, laiThu: 0, gocThu: 0, daTra: 0, daThu: 0, quaHan: 0, ds: [] };
+    (khoan || []).forEach((k) => (k.lich || []).forEach((e) => {
+      if (e.ngay < tu || e.ngay >= den) return;
+      const tong = e.goc + e.lai;
+      if (k.nhom === 'no') { r.laiTra += e.lai; r.gocTra += e.goc; if (e.tt === 'xong') r.daTra += tong; }
+      else { r.laiThu += e.lai; r.gocThu += e.goc; if (e.tt === 'xong') r.daThu += tong; }
+      if (e.tt === 'quahan') r.quaHan++;
+      r.ds.push({ k, e });
+    }));
+    r.ds.sort((a, b) => a.e.ngay - b.e.ngay);
+    return r;
+  }
+
+  return { pd, iso, soNgay, ngayKy, cacMoc, laiTai, kyKhoang, tongKy, lichTra, tomTat, noiBo };
 });

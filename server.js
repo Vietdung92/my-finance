@@ -12,6 +12,7 @@ const { Pool, types } = require('pg');
 // Cột DATE trả về chuỗi 'YYYY-MM-DD' để không lệch ngày do múi giờ
 types.setTypeParser(1082, (v) => v);
 const { migrate } = require('./db/migrate');
+const thongBao = require('./thong-bao');
 
 const COOKIE = 'mf_phien';
 const NHOM = ['no', 'chovay', 'dautu'];
@@ -345,6 +346,8 @@ function createApp(pool, opt = {}) {
     } catch (e) { next(e); }
   });
 
+  thongBao.caiDat(app, pool, opt);
+
   app.use('/api', (req, res) => res.status(404).json({ loi: 'Không có địa chỉ này.' }));
 
   /* ---------- trang web ---------- */
@@ -375,6 +378,7 @@ if (require.main === module) {
     .then(() => {
       const port = Number(process.env.PORT || 3060);
       createApp(pool).listen(port, '127.0.0.1', () => console.log(`My Finance chạy ở cổng ${port}`));
+      thongBao.batLich(pool);
     })
     .catch((e) => { console.error(e); process.exit(1); });
 }

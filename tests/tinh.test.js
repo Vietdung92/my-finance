@@ -105,3 +105,27 @@ test('trả theo quý / năm: chỉ trả lãi, gốc đều, trả đều', () 
   assert.deepEqual(a, b);
   assert.equal(a.length, 36);
 });
+
+test('bộ lọc thời gian: khoảng tháng/quý/năm và cộng tiền theo kỳ', () => {
+  const ky = (l, n) => { const x = T.kyKhoang(l, '2026-11-26', n); return [T.iso(x.tu), T.iso(x.den), x.ten]; };
+  assert.deepEqual(ky('thang', 0), ['2026-11-01', '2026-12-01', 'Tháng 11/2026']);
+  assert.deepEqual(ky('thang', 2), ['2027-01-01', '2027-02-01', 'Tháng 1/2027']);
+  assert.deepEqual(ky('quy', 0), ['2026-10-01', '2027-01-01', 'Quý 4/2026']);
+  assert.deepEqual(ky('quy', -4), ['2025-10-01', '2026-01-01', 'Quý 4/2025']);
+  assert.deepEqual(ky('nam', -1), ['2025-01-01', '2026-01-01', 'Năm 2025']);
+
+  const no = { nhom: 'no', goc: 120e6, bat_dau: '2026-01-10', ky_han: 12, cach: 'lai_thang', lai: 12 };
+  const cho = { nhom: 'chovay', goc: 100e6, bat_dau: '2026-01-10', ky_han: 12, cach: 'lai_thang', lai: 12, chu_ky: 3 };
+  [no, cho].forEach((k) => Object.assign(k, T.tomTat(k, [{ ky_ngay: '2026-02-10', trang_thai: 'da_tra' }], '2026-11-26')));
+  const q1 = T.kyKhoang('quy', '2026-02-01');
+  const r = T.tongKy([no, cho], q1.tu, q1.den);
+  // quý 1: khoản nợ trả lãi tháng có kỳ 10/2 và 10/3; khoản cho vay trả lãi theo quý có kỳ đầu 10/4 (ngoài quý 1)
+  assert.equal(r.ds.filter((x) => x.k === no).length, 2);
+  gan(r.laiTra, 1.2e6 * 2);
+  assert.equal(r.ds.filter((x) => x.k === cho).length, 0);
+  gan(r.laiThu, 0);
+  const q2 = T.kyKhoang('quy', '2026-05-01');
+  gan(T.tongKy([no, cho], q2.tu, q2.den).laiThu, 3e6);
+  gan(r.daTra, 1.2e6);             // chỉ kỳ 10/2 đã ghi nhận
+  assert.equal(r.quaHan, 1);       // kỳ 10/3 chưa ghi nhận, đã qua
+});
