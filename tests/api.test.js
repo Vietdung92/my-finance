@@ -94,6 +94,25 @@ test('API', { skip: !URL_DB && 'chưa đặt TEST_DATABASE_URL' }, async (t) => 
     assert.ok(d.j.nhat_ky.some((n) => /Dũng chuyển trả lãi 600\.000 đ cho Tú/.test(n.viec)));
   });
 
+  await t.test('danh bạ: tên tự vào khi nhập khoản, đổi tên thì khoản đổi theo, Dũng chỉ thấy tên của mình', async () => {
+    let tt = await T('GET', '/api/du-lieu');
+    assert.deepEqual(tt.j.doi_tac.map((d) => d.ten).sort(), ['Anh Tuấn', 'Vietcombank']);
+    const them = await T('POST', '/api/doi-tac', { ten: 'Anh Hùng', loai: 'nguoi', dien_thoai: '0909' });
+    assert.equal(them.s, 200);
+    assert.equal((await T('POST', '/api/doi-tac', { ten: 'anh hùng' })).s, 400, 'trùng tên không phân biệt hoa thường');
+    assert.equal((await D('POST', '/api/doi-tac', { ten: 'X' })).s, 403);
+    const vcb = tt.j.doi_tac.find((d) => d.ten === 'Vietcombank');
+    const doi = await T('PUT', '/api/doi-tac/' + vcb.id, { ten: 'Vietcombank Thủ Đức', loai: 'ngan_hang' });
+    assert.equal(doi.s, 200); assert.equal(doi.j.so_khoan, 1);
+    const d = await D('GET', '/api/du-lieu');
+    assert.equal(d.j.khoan[0].doi_tac, 'Vietcombank Thủ Đức');
+    assert.deepEqual(d.j.doi_tac.map((x) => x.ten), ['Vietcombank Thủ Đức'], 'Dũng không thấy tên ở khoản của Tú');
+    assert.equal((await T('DELETE', '/api/doi-tac/' + them.j.id)).s, 200);
+    tt = await T('GET', '/api/du-lieu');
+    assert.ok(!tt.j.doi_tac.some((x) => x.ten === 'Anh Hùng'));
+    assert.equal((await T('POST', '/api/doi-tac', { ten: 'Anh Hùng' })).s, 200, 'bỏ rồi thêm lại được');
+  });
+
   await t.test('đổi mật khẩu đăng xuất phiên cũ', async () => {
     const r = await D('POST', '/api/doi-mat-khau', { cu: 'matkhau-thu-123', moi: 'matkhau-moi-456' });
     assert.equal(r.s, 200);
@@ -103,5 +122,7 @@ test('API', { skip: !URL_DB && 'chưa đặt TEST_DATABASE_URL' }, async (t) => 
   await t.test('lệnh ghi không phải JSON bị chặn', async () => {
     const r = await fetch(base + '/api/khoan', { method: 'POST', body: 'ten=a', headers: { cookie: cookies.tu, 'content-type': 'application/x-www-form-urlencoded' } });
     assert.equal(r.status, 415);
+    const xoa = await fetch(base + '/api/doi-tac/999999', { method: 'DELETE', headers: { cookie: cookies.tu } });
+    assert.equal(xoa.status, 404, 'lệnh xóa không có nội dung vẫn tới được máy chủ');
   });
 });
