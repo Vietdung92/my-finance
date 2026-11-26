@@ -140,3 +140,8 @@ td .chip{display:inline-flex;padding:2px 8px;font-size:.76rem}
 .hd-nut-hang{display:flex;gap:8px;align-items:center}
 .hd-nut-hang .btn:disabled{opacity:.4;cursor:default}
 @media (prefers-reduced-motion:reduce){.hd-khoanh{transition:none}}
+
+/* Safari iPad/iPhone: ô ngày có bề rộng tối thiểu riêng nên tràn khỏi khung */
+.f2>div{min-width:0}
+.pf input[type=date]{-webkit-appearance:none;appearance:none;min-width:0;max-width:100%;display:block;min-height:46px;text-align:left}
+.pf input[type=date]::-webkit-date-and-time-value{text-align:left}

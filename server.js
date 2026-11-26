@@ -348,7 +348,8 @@ function createApp(pool, opt = {}) {
   app.use('/api', (req, res) => res.status(404).json({ loi: 'Không có địa chỉ này.' }));
 
   /* ---------- trang web ---------- */
-  app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html', maxAge: '1h' }));
+  // no-cache: trình duyệt vẫn giữ bản cũ nhưng hỏi lại máy chủ mỗi lần (ETag), cập nhật xong là thấy ngay
+  app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html', setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache') }));
   app.get('/suc-khoe', async (req, res) => { try { await q('SELECT 1'); res.send('ok'); } catch { res.status(500).send('db'); } });
 
   // eslint-disable-next-line no-unused-vars
