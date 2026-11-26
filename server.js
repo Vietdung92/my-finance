@@ -88,19 +88,36 @@ function createApp(pool, opt = {}) {
 
   /* ---------- đăng nhập ---------- */
   const thu = new Map(); // chặn đoán mật khẩu: 8 lần sai / 15 phút cho mỗi IP + tên
+  // Trả 'ok' (đã đặt cookie), 'khoa' (sai quá nhiều lần) hoặc 'sai'
+  const dangNhap = async (req, res, tenVao, mkVao) => {
+    const ten = String(tenVao || '').trim().toLowerCase();
+    const key = req.ip + '|' + ten, now = Date.now();
+    const t = (thu.get(key) || []).filter((x) => now - x < 15 * 60e3);
+    if (t.length >= 8) return 'khoa';
+    const u = (await q('SELECT * FROM nguoi_dung WHERE ten_dang_nhap=$1', [ten])).rows[0];
+    const ok = u && await bcrypt.compare(String(mkVao || ''), u.mat_khau_hash);
+    if (!ok) { t.push(now); thu.set(key, t); return 'sai'; }
+    thu.delete(key);
+    const token = jwt.sign({ id: u.id, p: u.phien }, SECRET, { expiresIn: '30d' });
+    res.cookie(COOKIE, token, { httpOnly: true, sameSite: 'strict', secure, maxAge: 30 * 864e5, path: '/' });
+    return 'ok';
+  };
   app.post('/api/dang-nhap', async (req, res, next) => {
     try {
-      const ten = String(req.body.ten_dang_nhap || '').trim().toLowerCase();
-      const key = req.ip + '|' + ten, now = Date.now();
-      const t = (thu.get(key) || []).filter((x) => now - x < 15 * 60e3);
-      if (t.length >= 8) return res.status(429).json({ loi: 'Sai mật khẩu quá nhiều lần. Thử lại sau 15 phút.' });
-      const u = (await q('SELECT * FROM nguoi_dung WHERE ten_dang_nhap=$1', [ten])).rows[0];
-      const ok = u && await bcrypt.compare(String(req.body.mat_khau || ''), u.mat_khau_hash);
-      if (!ok) { t.push(now); thu.set(key, t); return res.status(401).json({ loi: 'Sai tên đăng nhập hoặc mật khẩu.' }); }
-      thu.delete(key);
-      const token = jwt.sign({ id: u.id, p: u.phien }, SECRET, { expiresIn: '30d' });
-      res.cookie(COOKIE, token, { httpOnly: true, sameSite: 'strict', secure, maxAge: 30 * 864e5, path: '/' });
+      const kq = await dangNhap(req, res, req.body.ten_dang_nhap, req.body.mat_khau);
+      if (kq === 'khoa') return res.status(429).json({ loi: 'Sai mật khẩu quá nhiều lần. Thử lại sau 15 phút.' });
+      if (kq === 'sai') return res.status(401).json({ loi: 'Sai tên đăng nhập hoặc mật khẩu.' });
       res.json({ ok: true });
+    } catch (e) { next(e); }
+  });
+  // Đăng nhập bằng form thường (tải lại trang): iPhone/Android chỉ chắc chắn hỏi "Lưu mật khẩu?" khi form gửi đi rồi chuyển trang.
+  app.post('/dang-nhap', express.urlencoded({ extended: false, limit: '10kb' }), async (req, res, next) => {
+    try {
+      const goc = req.get('origin');
+      let cungNguon = true; try { cungNguon = !goc || goc === 'null' || new URL(goc).host === req.get('host'); } catch (_) { cungNguon = false; }
+      if (!cungNguon) return res.status(403).send('Sai nguồn.');
+      const kq = await dangNhap(req, res, req.body.username, req.body.password);
+      res.redirect(303, kq === 'ok' ? '/' : '/?loi=' + kq);
     } catch (e) { next(e); }
   });
   app.post('/api/dang-xuat', (req, res) => { res.clearCookie(COOKIE, { path: '/' }); res.json({ ok: true }); });
