@@ -148,7 +148,7 @@ function createApp(pool, opt = {}) {
       const nhatKy = (await q(`SELECT n.luc, n.viec, d.ten_hien_thi AS nguoi FROM nhat_ky n LEFT JOIN nguoi_dung d ON d.id=n.nguoi_id ${tatCa ? '' : 'WHERE $1 = ANY(n.lien_quan)'} ORDER BY n.luc DESC LIMIT 200`, tatCa ? [] : [u.id])).rows;
       const khoanOut = khoan.map((k) => ({ ...k, bat_dau: k.bat_dau && toIso(k.bat_dau), goc: Number(k.goc), lai: Number(k.lai), gia_tri: k.gia_tri == null ? null : Number(k.gia_tri) }));
       res.json({
-        toi: { id: u.id, ten: u.ten_hien_thi, quyen: u.quyen },
+        toi: { id: u.id, ten: u.ten_hien_thi, quyen: u.quyen, ten_dang_nhap: u.ten_dang_nhap },
         nguoi, khoan: khoanOut, thanh_toan: thanhToan,
         noi_bo: noiBo.map((k) => ({ ...k, goc: Number(k.goc), lai_thang: Number(k.lai_thang) })),
         chuyen_tra: chuyenTra.map((t) => ({ ...t, so_tien: Number(t.so_tien) })),
