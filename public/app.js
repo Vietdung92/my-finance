@@ -20,9 +20,9 @@
   const homNay = () => T.pd(new Date());
   const NHOM = { no: { ten: 'Đang nợ', c: '--debt' }, chovay: { ten: 'Cho vay', c: '--lend' }, dautu: { ten: 'Đầu tư', c: '--inv' } };
   const CACH = {
-    nien_kim: 'Trả đều mỗi kỳ (gốc + lãi, số tiền cố định)', goc_deu: 'Gốc chia đều mỗi kỳ, lãi trên dư nợ giảm dần',
-    lai_thang: 'Chỉ trả lãi mỗi kỳ, gốc trả một lần cuối', khong_lai: 'Không lãi, trả gốc khi đến hạn',
-    tiet_kiem: 'Tiết kiệm: lãi + gốc nhận khi đáo hạn', tai_san: 'Tài sản (nhà, đất...), theo giá ước tính',
+    nien_kim: 'Trả đều (gốc + lãi bằng nhau mỗi kỳ)', goc_deu: 'Gốc đều, lãi giảm dần',
+    lai_thang: 'Chỉ trả lãi, gốc trả cuối kỳ', khong_lai: 'Không lãi, trả gốc khi đến hạn',
+    tiet_kiem: 'Tiết kiệm: nhận gốc + lãi khi đáo hạn', tai_san: 'Tài sản (nhà, đất...)',
   };
 
   const CHU_KY = { 1: 'Mỗi tháng', 3: 'Mỗi quý (3 tháng)', 6: 'Mỗi 6 tháng', 12: 'Mỗi năm' };
@@ -75,9 +75,9 @@
   function khung() {
     return `<div class="wrap">
     <div class="top">
-      <div class="thuong-hieu"><img src="logo.svg" alt="" class="logo"><div><h1>My Finance</h1><div class="muted" style="font-size:.85rem">Số liệu tính đến hôm nay, ${dd(homNay())}</div></div></div>
-      <div class="me">${av(toi().id)}<b>${esc(toi().ten)}</b><span class="pill ${coNhap() ? 'ok' : 'warn'}">${coNhap() ? 'Nhập liệu' : 'Chỉ xem'}</span>
-        <button class="hd-nut" id="bHd" aria-label="Hướng dẫn từng bước" title="Hướng dẫn từng bước">?</button><button class="btn ghost sm" id="bMk">Đổi mật khẩu</button><button class="btn ghost sm" id="bOut">Đăng xuất</button></div>
+      <div class="thuong-hieu"><img src="logo.svg" alt="" class="logo"><div><h1>My Finance</h1><div class="muted" style="font-size:.85rem">Số liệu đến ${dd(homNay())}</div></div></div>
+      <div class="me"><button class="hd-nut" id="bHd" aria-label="Hướng dẫn từng bước" title="Hướng dẫn từng bước">?</button>
+        <button class="tk-nut" id="bTk" aria-label="Tài khoản: đổi mật khẩu, đăng xuất">${av(toi().id)}<span class="tk-ten">${esc(toi().ten)}</span><span aria-hidden="true">▾</span></button></div>
     </div>
     ${coNhap() ? `<div class="thanh-nhap"><div class="chips" id="members" role="group" aria-label="Xem ví của ai"></div>
       <div class="acts"><button class="btn sm" id="addBtn">+ Thêm khoản</button><button class="btn sm ghost" id="addNb">+ Khoản mượn</button><button class="btn sm ghost" id="dbBtn">Danh bạ</button></div></div>` : ''}
@@ -107,8 +107,7 @@
 
   function renderApp() {
     $('app').innerHTML = khung();
-    $('bOut').onclick = async () => { await api('POST', '/api/dang-xuat', {}); D = null; renderLogin(); };
-    $('bMk').onclick = moDoiMatKhau;
+    $('bTk').onclick = moTaiKhoan;
     $('bHd').onclick = () => HuongDan.mo(coNhap());
     if (coNhap()) {
       $('addBtn').onclick = () => moKhoan(null);
@@ -135,7 +134,7 @@
     const today = homNay();
     const ai = xemAi;
     if (coNhap()) {
-      $('members').innerHTML = '<span class="muted" style="font-size:.84rem;align-self:center">Xem số liệu của:</span>' +
+      $('members').innerHTML = '<span class="muted chu-xem" style="font-size:.84rem;align-self:center">Xem số liệu của:</span>' +
         D.nguoi.map((x) => `<button class="chip" aria-pressed="${ai === x.id}" data-who="${x.id}">${av(x.id)}Ví ${esc(x.ten)}</button>`).join('');
     }
     const its = D.khoan.filter((k) => ai === 'all' || k.chu_id === ai);
@@ -539,6 +538,15 @@
       b.disabled = true;
       api('DELETE', '/api/doi-tac/' + b.dataset.dbbo).then(async () => { await taiLai(); moDanhBa(); toast('Đã bỏ khỏi danh bạ. Các khoản đã nhập vẫn giữ nguyên.'); }).catch((err) => { toast(err.message); b.disabled = false; });
     }; });
+  }
+
+  /* Tài khoản: gom đổi mật khẩu, đăng xuất vào một bảng cho gọn đầu màn điện thoại */
+  function moTaiKhoan() {
+    moSheet(`<div class="tk-dau">${av(toi().id)}<div><h2 style="font-size:1.25rem">${esc(toi().ten)}</h2>
+      <span class="pill ${coNhap() ? 'ok' : 'warn'}">${coNhap() ? 'Nhập liệu: thêm, sửa mọi khoản' : 'Chỉ xem'}</span></div></div>
+      <button class="btn ghost" id="bMk">Đổi mật khẩu</button><button class="btn ghost" id="bOut">Đăng xuất</button>`);
+    $('bMk').onclick = moDoiMatKhau;
+    $('bOut').onclick = async () => { await api('POST', '/api/dang-xuat', {}); dong(); D = null; renderLogin(); };
   }
 
   function moDoiMatKhau() {

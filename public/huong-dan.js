@@ -19,6 +19,7 @@
       { s: '#pNguoi', t: 'Nợ theo từng người. Bấm một người để chỉ xem các khoản của người đó.' },
       { s: '#cal', t: 'Lịch các kỳ đến hạn trong 60 ngày tới.' },
       { s: '#log', t: 'Nhật ký: ai thêm, sửa, ghi nhận gì và lúc nào.' },
+      { s: '#bTk', t: 'Bấm vào tên mình để đổi mật khẩu hoặc đăng xuất.' },
     ],
     chinh_xem: [
       { s: '#hero', t: 'Tổng quan: tài sản ròng, nợ còn lại, tiền cho vay và đầu tư, lãi tháng này.' },
@@ -30,7 +31,7 @@
       { s: '#pNguoi', t: 'Nợ theo từng người. Bấm một người để chỉ xem các khoản của người đó.' },
       { s: '#cal', t: 'Lịch các kỳ đến hạn trong 60 ngày tới.' },
       { s: '#log', t: 'Nhật ký: Tú thêm, sửa, ghi nhận gì và lúc nào.' },
-      { s: '#bMk', t: 'Đổi mật khẩu của anh ở đây.' },
+      { s: '#bTk', t: 'Bấm vào tên mình để đổi mật khẩu hoặc đăng xuất.' },
     ],
     khoan: [
       { s: '#kf fieldset:nth-of-type(1)', t: 'Chọn loại khoản: Đi vay, Cho vay hay Đầu tư.' },
@@ -80,6 +81,10 @@
       { s: '[data-dbsua]', t: 'Sửa tên: các khoản đang dùng tên cũ tự đổi theo.' },
       { s: '[data-dbbo]', t: 'Bỏ khỏi danh bạ: bấm 2 lần. Các khoản đã nhập vẫn giữ nguyên.' },
     ],
+    taikhoan: [
+      { s: '#bMk', t: 'Đổi mật khẩu đăng nhập.' },
+      { s: '#bOut', t: 'Đăng xuất khỏi máy này.' },
+    ],
     matkhau: [
       { s: '#mCu', t: 'Nhập mật khẩu đang dùng.' },
       { s: '#mMoi', t: 'Nhập mật khẩu mới.' },
@@ -96,6 +101,7 @@
       if (document.getElementById('pf')) return 'chuyentra';
       if (document.getElementById('dbf')) return 'danhba';
       if (document.getElementById('mf')) return 'matkhau';
+      if (document.getElementById('bOut')) return 'taikhoan';
       return 'chitiet';
     }
     return coNhap ? 'chinh_nhap' : 'chinh_xem';
