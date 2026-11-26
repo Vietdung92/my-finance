@@ -112,7 +112,9 @@ function createApp(pool, opt = {}) {
   const canNhap = (req, res, next) =>
     req.u.quyen === 'nhap' ? next() : res.status(403).json({ loi: 'Tài khoản này chỉ được xem, không sửa được.' });
   // Chống gửi lệnh từ trang khác: mọi lệnh ghi phải là JSON
-  const chiJson = (req, res, next) => (req.is('application/json') ? next() : res.status(415).json({ loi: 'Sai định dạng.' }));
+  // (lệnh không có nội dung, như xóa, thì cho qua: cookie SameSite=strict đã chặn trang khác gửi kèm phiên)
+  const coNoiDung = (req) => Number(req.headers['content-length'] || 0) > 0 || !!req.headers['transfer-encoding'];
+  const chiJson = (req, res, next) => (!coNoiDung(req) || req.is('application/json') ? next() : res.status(415).json({ loi: 'Sai định dạng.' }));
 
   app.use('/api', (req, res, next) => (req.path === '/dang-nhap' ? next() : canDangNhap(req, res, next)));
   app.use('/api', (req, res, next) => (req.method === 'GET' ? next() : chiJson(req, res, next)));
@@ -148,6 +150,7 @@ function createApp(pool, opt = {}) {
         noi_bo: noiBo.map((k) => ({ ...k, goc: Number(k.goc), lai_thang: Number(k.lai_thang) })),
         chuyen_tra: chuyenTra.map((t) => ({ ...t, so_tien: Number(t.so_tien) })),
         nhat_ky: nhatKy,
+        doi_tac: (await q(`SELECT id, ten, loai, dien_thoai, ghi_chu FROM doi_tac WHERE NOT da_xoa ${tatCa ? '' : 'AND lower(ten) = ANY($1)'} ORDER BY lower(ten)`, tatCa ? [] : [khoan.map((k) => k.doi_tac.toLowerCase())])).rows,
       });
     } catch (e) { next(e); }
   });
@@ -159,12 +162,14 @@ function createApp(pool, opt = {}) {
     if (!k) throw new Loi(404, 'Không tìm thấy khoản này.');
     return k;
   };
+  const themDanhBa = (ten) => q('INSERT INTO doi_tac (ten) VALUES ($1) ON CONFLICT DO NOTHING', [ten]);
   const COT = ['chu_id', 'nhom', 'ten', 'doi_tac', 'goc', 'bat_dau', 'ky_han', 'cach', 'lai', 'don_vi_lai', 'doi_lai', 'ngay_chot', 'tu_dong_da_tra', 'gia_tri', 'ghi_chu'];
   const val = (kh) => COT.map((c) => (c === 'doi_lai' ? JSON.stringify(kh[c]) : kh[c]));
 
   app.post('/api/khoan', canNhap, async (req, res, next) => {
     try {
       const kh = docKhoan(req.body, await nguoiIds());
+      await themDanhBa(kh.doi_tac);
       const r = await q(`INSERT INTO khoan (${COT.join(',')}) VALUES (${COT.map((_, i) => '$' + (i + 1)).join(',')}) RETURNING id`, val(kh));
       await ghiNhatKy(req.u.id, `Thêm khoản: ${kh.ten} · ${kh.doi_tac} ${fmt(kh.goc)} (${CACH_TEN[kh.cach]})`, [req.u.id, kh.chu_id]);
       res.json({ id: r.rows[0].id });
@@ -175,6 +180,7 @@ function createApp(pool, opt = {}) {
     try {
       const cu = await layKhoan(req.params.id);
       const kh = docKhoan(req.body, await nguoiIds());
+      await themDanhBa(kh.doi_tac);
       await q(`UPDATE khoan SET ${COT.map((c, i) => `${c}=$${i + 1}`).join(',')}, sua_luc=now() WHERE id=$${COT.length + 1}`, [...val(kh), cu.id]);
       const doi = [];
       const so2 = (a, b) => Number(a) !== Number(b);
@@ -292,6 +298,46 @@ function createApp(pool, opt = {}) {
       if (!t) throw new Loi(404, 'Không tìm thấy lần chuyển này.');
       await q('UPDATE chuyen_tra SET da_xoa=true WHERE id=$1', [t.id]);
       await ghiNhatKy(req.u.id, `Xóa lần chuyển ${t.loai === 'goc' ? 'trả gốc' : 'trả lãi'} ${fmt(t.so_tien)} ngày ${ddmm(toIso(t.ngay))}`, [req.u.id, t.cho_vay_id, t.vay_id]);
+      res.json({ ok: true });
+    } catch (e) { next(e); }
+  });
+
+  /* ---------- danh bạ người / ngân hàng ---------- */
+  const LOAI_DT = ['nguoi', 'ngan_hang', 'khac'];
+  const docDoiTac = (b) => ({
+    ten: chu(b.ten, 'tên'), loai: LOAI_DT.includes(b.loai) ? b.loai : 'nguoi',
+    dien_thoai: chu(b.dien_thoai, 'số điện thoại', 30, false), ghi_chu: chu(b.ghi_chu, 'ghi chú', 500, false),
+  });
+  const trungTen = (e) => { if (e.code === '23505') throw sai('Tên này đã có trong danh bạ.'); throw e; };
+  app.post('/api/doi-tac', canNhap, async (req, res, next) => {
+    try {
+      const d = docDoiTac(req.body);
+      const r = await q('INSERT INTO doi_tac (ten, loai, dien_thoai, ghi_chu) VALUES ($1,$2,$3,$4) RETURNING id', [d.ten, d.loai, d.dien_thoai, d.ghi_chu]).catch(trungTen);
+      await ghiNhatKy(req.u.id, `Thêm vào danh bạ: ${d.ten}`, [req.u.id]);
+      res.json({ id: r.rows[0].id });
+    } catch (e) { next(e); }
+  });
+  // Đổi tên thì đổi luôn tên trên các khoản đang dùng tên cũ
+  app.put('/api/doi-tac/:id', canNhap, async (req, res, next) => {
+    const c = await pool.connect();
+    try {
+      const cu = (await c.query('SELECT * FROM doi_tac WHERE id=$1 AND NOT da_xoa', [Number(req.params.id)])).rows[0];
+      if (!cu) throw new Loi(404, 'Không tìm thấy tên này trong danh bạ.');
+      const d = docDoiTac(req.body);
+      await c.query('BEGIN');
+      await c.query('UPDATE doi_tac SET ten=$1, loai=$2, dien_thoai=$3, ghi_chu=$4 WHERE id=$5', [d.ten, d.loai, d.dien_thoai, d.ghi_chu, cu.id]).catch(trungTen);
+      const doi = cu.ten !== d.ten ? await c.query('UPDATE khoan SET doi_tac=$1, sua_luc=now() WHERE lower(doi_tac)=lower($2) AND NOT da_xoa RETURNING chu_id', [d.ten, cu.ten]) : { rows: [] };
+      await c.query('COMMIT');
+      await ghiNhatKy(req.u.id, cu.ten !== d.ten ? `Đổi tên trong danh bạ: ${cu.ten} → ${d.ten} (${doi.rows.length} khoản)` : `Sửa thông tin danh bạ: ${d.ten}`, [req.u.id, ...doi.rows.map((r) => r.chu_id)]);
+      res.json({ ok: true, so_khoan: doi.rows.length });
+    } catch (e) { await c.query('ROLLBACK').catch(() => {}); next(e); } finally { c.release(); }
+  });
+  // Bỏ khỏi danh bạ không đụng tới các khoản đã nhập
+  app.delete('/api/doi-tac/:id', canNhap, async (req, res, next) => {
+    try {
+      const r = await q('UPDATE doi_tac SET da_xoa=true WHERE id=$1 AND NOT da_xoa RETURNING ten', [Number(req.params.id)]);
+      if (!r.rows[0]) throw new Loi(404, 'Không tìm thấy tên này trong danh bạ.');
+      await ghiNhatKy(req.u.id, `Bỏ khỏi danh bạ: ${r.rows[0].ten}`, [req.u.id]);
       res.json({ ok: true });
     } catch (e) { next(e); }
   });

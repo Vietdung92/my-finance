@@ -34,7 +34,7 @@
     return j;
   }
 
-  let D = null, xemAi = 'all', tab = 'all', charts = {};
+  let D = null, xemAi = 'all', tab = 'all', charts = {}, loc = null, phiaNguoi = 'no';
   const toi = () => D.toi;
   const coNhap = () => D.toi.quyen === 'nhap';
   const nguoi = (id) => D.nguoi.find((x) => x.id === id) || { ten: '?', mau: '#888' };
@@ -83,8 +83,8 @@
       <div class="panel"><div class="ph"><h2>Cần chú ý</h2><span class="muted" id="alertCount" style="font-size:.82rem"></span></div><div class="alerts" id="alerts"></div></div>
     </div>
     <div class="grid2">
-      <div class="panel"><div class="ph"><h2>Các khoản</h2>${coNhap() ? '<button class="btn sm" id="addBtn">+ Thêm khoản</button>' : '<span class="muted" style="font-size:.82rem">Bấm vào từng khoản để xem lịch trả</span>'}</div>
-        <div class="tabs" role="tablist" id="tabs"></div><div class="list" id="list"></div></div>
+      <div class="panel"><div class="ph"><h2>Các khoản</h2>${coNhap() ? '<div class="acts"><button class="btn sm ghost" id="dbBtn">Danh bạ</button><button class="btn sm" id="addBtn">+ Thêm khoản</button></div>' : '<span class="muted" style="font-size:.82rem">Bấm vào từng khoản để xem lịch trả</span>'}</div>
+        <div class="tabs" role="tablist" id="tabs"></div><div id="locChip"></div><div class="list" id="list"></div></div>
       <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
         <div class="panel"><div class="ph"><h2>Cơ cấu</h2></div><div class="chartbox" style="height:210px"><canvas id="mix" aria-label="Cơ cấu nợ, cho vay, đầu tư"></canvas></div><div class="legend" id="mixLegend"></div></div>
         <div class="panel"><div class="ph"><h2>Mượn qua lại giữa 2 người</h2>${coNhap() ? '<button class="btn sm ghost" id="addNb">+ Khoản mượn</button>' : ''}</div>
@@ -92,6 +92,8 @@
           <details style="margin-top:10px"><summary class="muted" style="cursor:pointer;font-size:.86rem">Lịch sử chuyển trả</summary><div class="scroll" style="margin-top:8px"><table id="tx"></table></div></details></div>
       </div>
     </div>
+    <div class="panel" id="pNguoi"><div class="ph"><h2>Theo từng người</h2><span class="muted" style="font-size:.82rem">Bấm một dòng để xem các khoản của người đó</span></div>
+      <div class="tabs" role="tablist" id="tabsNguoi"></div><div class="list" id="bangNguoi"></div></div>
     <div class="panel"><div class="ph"><h2>Lịch đến hạn 60 ngày tới</h2><span class="muted" id="calSum" style="font-size:.82rem"></span></div><div class="cal" id="cal"></div></div>
     <div class="panel"><div class="ph"><h2>Nhật ký thay đổi</h2><span class="muted" style="font-size:.82rem">Ai thêm, sửa, ghi nhận gì và lúc nào</span></div><div class="scroll" style="max-height:300px"><table id="log"></table></div></div>
     </div>`;
@@ -103,9 +105,14 @@
     $('bMk').onclick = moDoiMatKhau;
     if (coNhap()) {
       $('addBtn').onclick = () => moKhoan(null);
+      $('dbBtn').onclick = moDanhBa;
       $('addNb').onclick = () => moNoiBo(null);
       $('members').onclick = (e) => { const b = e.target.closest('[data-who]'); if (!b) return; xemAi = b.dataset.who === 'all' ? 'all' : Number(b.dataset.who); veSoLieu(); };
     }
+    $('tabsNguoi').onclick = (e) => { const b = e.target.closest('[data-phia]'); if (b) { phiaNguoi = b.dataset.phia; veSoLieu(); } };
+    $('bangNguoi').onclick = (e) => { const r = e.target.closest('[data-ten]'); if (!r) return; loc = r.dataset.ten; tab = 'all'; veSoLieu(); $('list').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    $('bangNguoi').onkeydown = (e) => { if (e.key === 'Enter') { const r = e.target.closest('[data-ten]'); if (r) r.click(); } };
+    $('locChip').onclick = (e) => { if (e.target.closest('[data-boloc]')) { loc = null; veSoLieu(); } };
     $('tabs').onclick = (e) => { const b = e.target.closest('[data-tab]'); if (b) { tab = b.dataset.tab; veSoLieu(); } };
     $('list').onclick = (e) => { const r = e.target.closest('.row'); if (r) moChiTiet(Number(r.dataset.id)); };
     $('list').onkeydown = (e) => { const r = e.target.closest('.row'); if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); moChiTiet(Number(r.dataset.id)); } };
@@ -181,7 +188,8 @@
     /* danh sách khoản */
     const dem = { all: its.length, no: 0, chovay: 0, dautu: 0 }; its.forEach((i) => dem[i.nhom]++);
     $('tabs').innerHTML = [['all', 'Tất cả'], ['no', 'Đang nợ'], ['chovay', 'Cho vay'], ['dautu', 'Đầu tư']].map(([k, t]) => `<button class="tab" role="tab" aria-selected="${tab === k}" data-tab="${k}">${t} <span class="muted">${dem[k]}</span></button>`).join('');
-    const ds = its.filter((k) => tab === 'all' || k.nhom === tab).sort((a, b) => b.conLai - a.conLai);
+    $('locChip').innerHTML = loc ? `<button class="chip" data-boloc="1" style="margin-bottom:8px">Đang xem: <b>${esc(loc)}</b> &nbsp;✕ Bỏ lọc</button>` : '';
+    const ds = its.filter((k) => (tab === 'all' || k.nhom === tab) && (!loc || k.doi_tac.toLowerCase() === loc.toLowerCase())).sort((a, b) => b.conLai - a.conLai);
     $('list').innerHTML = ds.map((k) => {
       const st = k.quaHan.length ? '<span class="pill crit">Quá hạn</span>' : k.kyToi && T.soNgay(today, k.kyToi.ngay) <= 7 && k.nhom === 'no' ? '<span class="pill warn">Sắp đến hạn</span>' : '';
       const pct = k.daTraPct == null ? null : Math.round(k.daTraPct * 100);
@@ -192,6 +200,31 @@
         <div class="amt num" style="color:var(${k.nhom === 'no' ? '--crit' : '--ink'})">${k.nhom === 'no' ? '−' : ''}${m(k.conLai)}</div>
         ${pct == null ? '' : `<div class="bar"><i style="width:${pct}%;background:var(${NHOM[k.nhom].c})"></i></div>`}</div>`;
     }).join('') || `<div class="empty">${coNhap() ? 'Chưa có khoản nào. Bấm "+ Thêm khoản" để nhập khoản đầu tiên.' : 'Chưa có khoản nào được nhập.'}</div>`;
+
+    /* theo từng người */
+    const nhomPhia = phiaNguoi === 'no' ? ['no'] : ['chovay'];
+    const theo = {};
+    its.filter((k) => nhomPhia.includes(k.nhom)).forEach((k) => {
+      const key = k.doi_tac.trim().toLowerCase();
+      const g = theo[key] || (theo[key] = { ten: k.doi_tac.trim(), so: 0, goc: 0, laiThang: 0, kyToi: null, kyKhoan: null, quaHan: 0 });
+      g.so++; g.goc += k.conLai; g.quaHan += k.quaHan.length;
+      k.lich.forEach((e) => { if (e.ngay.getFullYear() === y && e.ngay.getMonth() === mo) g.laiThang += e.lai; });
+      if (k.kyToi && (!g.kyToi || k.kyToi.ngay < g.kyToi.ngay)) { g.kyToi = k.kyToi; }
+    });
+    const nhomNguoi = Object.values(theo).sort((a, b) => b.goc - a.goc);
+    const lon = Math.max(1, ...nhomNguoi.map((g) => g.goc));
+    const demNo = new Set(its.filter((k) => k.nhom === 'no').map((k) => k.doi_tac.trim().toLowerCase())).size;
+    const demCho = new Set(its.filter((k) => k.nhom === 'chovay').map((k) => k.doi_tac.trim().toLowerCase())).size;
+    $('tabsNguoi').innerHTML = `<button class="tab" role="tab" aria-selected="${phiaNguoi === 'no'}" data-phia="no">Mình đang nợ <span class="muted">${demNo}</span></button><button class="tab" role="tab" aria-selected="${phiaNguoi === 'chovay'}" data-phia="chovay">Đang nợ mình <span class="muted">${demCho}</span></button>`;
+    const dtTheoTen = (ten) => (D.doi_tac || []).find((d) => d.ten.toLowerCase() === ten.toLowerCase());
+    $('bangNguoi').innerHTML = nhomNguoi.length ? nhomNguoi.map((g) => {
+      const dt = dtTheoTen(g.ten);
+      const chiTiet = [`${g.so} khoản`, dt && dt.dien_thoai ? esc(dt.dien_thoai) : '', g.laiThang ? `lãi tháng ${mo + 1}: ${m(g.laiThang)}` : '', g.kyToi ? `kỳ tới ${dd(g.kyToi.ngay)}: ${m(g.kyToi.goc + g.kyToi.lai)}` : ''].filter(Boolean).join(' · ');
+      return `<div class="row" tabindex="0" data-ten="${esc(g.ten)}">
+        <div><div class="name">${esc(g.ten)} ${g.quaHan ? '<span class="pill crit">Quá hạn</span>' : ''}</div><div class="meta">${chiTiet}</div></div>
+        <div class="amt num" style="color:var(${phiaNguoi === 'no' ? '--crit' : '--ink'})">${phiaNguoi === 'no' ? '−' : ''}${m(g.goc)}</div>
+        <div class="bar"><i style="width:${Math.round(g.goc / lon * 100)}%;background:var(${phiaNguoi === 'no' ? '--debt' : '--lend'})"></i></div></div>`;
+    }).join('') : `<div class="empty">${phiaNguoi === 'no' ? 'Chưa có khoản đi vay nào.' : 'Chưa có khoản cho vay nào.'}</div>`;
 
     /* cơ cấu */
     const nhomSo = ['no', 'chovay', 'dautu'].map((k) => ({ k, t: NHOM[k].ten, v: its.filter((i) => i.nhom === k).reduce((a, i) => a + i.conLai, 0) }));
@@ -333,7 +366,7 @@
     <form id="kf" class="pf" novalidate>
       <fieldset class="seg"><legend>Loại khoản</legend>${r('nhom', 'no', 'Đi vay', v.nhom === 'no')}${r('nhom', 'chovay', 'Cho vay', v.nhom === 'chovay')}${r('nhom', 'dautu', 'Đầu tư', v.nhom === 'dautu')}</fieldset>
       <fieldset class="seg"><legend>Khoản của ai</legend>${D.nguoi.map((x) => r('chu', x.id, esc(x.ten), v.chu_id === x.id)).join('')}</fieldset>
-      <div class="f2"><div><label for="fTen">Tên khoản</label><input id="fTen" maxlength="200" value="${esc(v.ten || '')}" placeholder="Vay mua xe"></div><div><label for="fDt">Ngân hàng / người</label><input id="fDt" maxlength="200" value="${esc(v.doi_tac || '')}" placeholder="BIDV, anh Nam..."></div></div>
+      <div class="f2"><div><label for="fTen">Tên khoản</label><input id="fTen" maxlength="200" value="${esc(v.ten || '')}" placeholder="Vay mua xe"></div><div><label for="fDt">Ngân hàng / người</label><input id="fDt" maxlength="200" list="dsDoiTac" autocomplete="off" value="${esc(v.doi_tac || '')}" placeholder="Gõ hoặc chọn trong danh bạ"><datalist id="dsDoiTac">${(D.doi_tac || []).map((d) => `<option value="${esc(d.ten)}"></option>`).join('')}</datalist></div></div>
       <label for="fCach">Cách trả</label><select id="fCach">${Object.keys(CACH).map((c) => `<option value="${c}" ${v.cach === c ? 'selected' : ''}>${CACH[c]}</option>`).join('')}</select>
       <div class="f2"><div><label for="fGoc">Số tiền gốc (đồng)</label><input id="fGoc" inputmode="numeric" value="${v.goc ? Number(v.goc).toLocaleString('vi-VN') : ''}" placeholder="500.000.000"></div><div><label for="fBd">Ngày bắt đầu</label><input id="fBd" type="date" value="${esc(v.bat_dau)}"></div></div>
       <div class="f2" id="gGt"><div><label for="fGt">Giá ước tính hiện nay (đồng)</label><input id="fGt" inputmode="numeric" value="${v.gia_tri ? Number(v.gia_tri).toLocaleString('vi-VN') : ''}"></div></div>
@@ -445,6 +478,54 @@
       const loai = document.querySelector('input[name=loai]:checked').value;
       gui(e.target, () => api('POST', `/api/noi-bo/${k.id}/chuyen-tra`, { loai, so_tien: soTien($('pTien').value), ngay: $('pNgay').value, ghi_chu: $('pGc').value }), `Đã ghi ${loai === 'goc' ? 'trả gốc' : 'trả lãi'}.`);
     };
+  }
+
+  /* ---------- danh bạ ---------- */
+  const LOAI_DT = { nguoi: 'Cá nhân', ngan_hang: 'Ngân hàng', khac: 'Khác' };
+  function moDanhBa(suaId) {
+    const ds = D.doi_tac || [];
+    const sua = suaId ? ds.find((d) => d.id === suaId) : null;
+    const thongKe = (ten) => {
+      const ks = D.khoan.filter((k) => k.doi_tac.toLowerCase() === ten.toLowerCase());
+      const no = ks.filter((k) => k.nhom === 'no').reduce((a, k) => a + k.conLai, 0);
+      const cho = ks.filter((k) => k.nhom === 'chovay').reduce((a, k) => a + k.conLai, 0);
+      return `${ks.length} khoản${no ? ` · đang nợ <b class="out">${m(no)}</b>` : ''}${cho ? ` · đang nợ mình <b class="in">${m(cho)}</b>` : ''}`;
+    };
+    const opt = (cur) => Object.keys(LOAI_DT).map((k) => `<option value="${k}" ${cur === k ? 'selected' : ''}>${LOAI_DT[k]}</option>`).join('');
+    moSheet(`<h2 style="font-size:1.25rem">Danh bạ người / ngân hàng</h2>
+      <div class="hint">Tên trong danh bạ hiện ra để chọn nhanh khi nhập khoản. Đổi tên ở đây thì các khoản đang dùng tên cũ đổi theo.</div>
+      <form id="dbf" class="pf panel" novalidate>
+        <b>${sua ? 'Sửa: ' + esc(sua.ten) : 'Thêm người / ngân hàng'}</b>
+        <div class="f2"><div><label for="dTen">Tên</label><input id="dTen" maxlength="200" value="${esc(sua?.ten || '')}" placeholder="Anh Hùng, Vietcombank..."></div>
+          <div><label for="dLoai">Loại</label><select id="dLoai">${opt(sua?.loai || 'nguoi')}</select></div></div>
+        <div class="f2"><div><label for="dSdt">Số điện thoại</label><input id="dSdt" inputmode="tel" maxlength="30" value="${esc(sua?.dien_thoai || '')}"></div>
+          <div><label for="dGc">Ghi chú</label><input id="dGc" maxlength="500" value="${esc(sua?.ghi_chu || '')}"></div></div>
+        <div class="out ferr" hidden></div>
+        <div class="acts"><button class="btn sm" type="submit">${sua ? 'Lưu thay đổi' : 'Thêm vào danh bạ'}</button>${sua ? '<button type="button" class="btn sm ghost" id="dHuy">Thôi, không sửa</button>' : ''}</div>
+      </form>
+      <div class="list">${ds.length ? ds.map((d) => `<div class="cday" style="grid-template-columns:1fr auto">
+          <div><b>${esc(d.ten)}</b> <span class="pill ok">${LOAI_DT[d.loai] || ''}</span>${d.dien_thoai ? ` <span class="muted">· ${esc(d.dien_thoai)}</span>` : ''}
+            <div class="muted" style="font-size:.8rem">${thongKe(d.ten)}${d.ghi_chu ? ' · ' + esc(d.ghi_chu) : ''}</div></div>
+          <div class="acts"><button class="chip" data-dbsua="${d.id}">Sửa</button><button class="chip" data-dbbo="${d.id}">Bỏ</button></div></div>`).join('')
+        : '<div class="empty">Danh bạ trống. Thêm tên ở trên, hoặc tên sẽ tự vào danh bạ khi nhập khoản.</div>'}</div>`);
+    if (sua) $('dHuy').onclick = () => moDanhBa();
+    $('dbf').onsubmit = async (e) => {
+      e.preventDefault();
+      const body = { ten: $('dTen').value, loai: $('dLoai').value, dien_thoai: $('dSdt').value, ghi_chu: $('dGc').value };
+      const b = e.target.querySelector('button[type=submit]'), er = e.target.querySelector('.ferr');
+      b.disabled = true; er.hidden = true;
+      try {
+        const r = sua ? await api('PUT', '/api/doi-tac/' + sua.id, body) : await api('POST', '/api/doi-tac', body);
+        await taiLai(); moDanhBa();
+        toast(sua ? (r.so_khoan ? `Đã lưu, đổi tên trên ${r.so_khoan} khoản.` : 'Đã lưu.') : 'Đã thêm vào danh bạ.');
+      } catch (err) { er.textContent = err.message; er.hidden = false; b.disabled = false; }
+    };
+    $('sheet').querySelectorAll('[data-dbsua]').forEach((b) => { b.onclick = () => moDanhBa(Number(b.dataset.dbsua)); });
+    $('sheet').querySelectorAll('[data-dbbo]').forEach((b) => { b.onclick = () => {
+      if (b.dataset.chac !== '1') { b.dataset.chac = '1'; b.textContent = 'Bấm lần nữa'; return; }
+      b.disabled = true;
+      api('DELETE', '/api/doi-tac/' + b.dataset.dbbo).then(async () => { await taiLai(); moDanhBa(); toast('Đã bỏ khỏi danh bạ. Các khoản đã nhập vẫn giữ nguyên.'); }).catch((err) => { toast(err.message); b.disabled = false; });
+    }; });
   }
 
   function moDoiMatKhau() {
