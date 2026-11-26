@@ -55,7 +55,7 @@
   /* ---------- đăng nhập ---------- */
   function renderLogin(loi) {
     $('app').innerHTML = `<div class="login"><form id="lf" class="pf panel" autocomplete="on">
-      <h1>My Finance</h1><div class="muted">Đăng nhập để xem số liệu.</div>
+      <img src="logo.svg" alt="" class="logo-lon"><h1>My Finance</h1><div class="muted">Đăng nhập để xem số liệu.</div>
       <label for="lTen">Tên đăng nhập</label><input id="lTen" autocomplete="username" autocapitalize="none" required>
       <label for="lMk">Mật khẩu</label><input id="lMk" type="password" autocomplete="current-password" required>
       <div class="out" id="lErr" ${loi ? '' : 'hidden'}>${esc(loi || '')}</div>
@@ -73,7 +73,7 @@
   function khung() {
     return `<div class="wrap">
     <div class="top">
-      <div><h1>My Finance</h1><div class="muted" style="font-size:.85rem">Số liệu tính đến hôm nay, ${dd(homNay())}</div></div>
+      <div class="thuong-hieu"><img src="logo.svg" alt="" class="logo"><div><h1>My Finance</h1><div class="muted" style="font-size:.85rem">Số liệu tính đến hôm nay, ${dd(homNay())}</div></div></div>
       <div class="me">${av(toi().id)}<b>${esc(toi().ten)}</b><span class="pill ${coNhap() ? 'ok' : 'warn'}">${coNhap() ? 'Nhập liệu' : 'Chỉ xem'}</span>
         <button class="hd-nut" id="bHd" aria-label="Hướng dẫn từng bước" title="Hướng dẫn từng bước">?</button><button class="btn ghost sm" id="bMk">Đổi mật khẩu</button><button class="btn ghost sm" id="bOut">Đăng xuất</button></div>
     </div>

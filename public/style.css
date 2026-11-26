@@ -145,3 +145,10 @@ td .chip{display:inline-flex;padding:2px 8px;font-size:.76rem}
 .f2>div{min-width:0}
 .pf input[type=date]{-webkit-appearance:none;appearance:none;min-width:0;max-width:100%;display:block;min-height:46px;text-align:left}
 .pf input[type=date]::-webkit-date-and-time-value{text-align:left}
+
+/* logo */
+.thuong-hieu{display:flex;align-items:center;gap:12px}
+.thuong-hieu .logo{width:48px;height:48px;flex:none}
+.login .logo-lon{width:88px;height:88px;align-self:center}
+.login h1{text-align:center}
+.login form>.muted{text-align:center}
