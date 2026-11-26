@@ -471,12 +471,12 @@
   /* ---------- thêm / sửa khoản ---------- */
   function moKhoan(id) {
     const k = id ? D.khoan.find((x) => x.id === id) : null;
-    const v = k || { nhom: 'no', chu_id: xemAi || D.toi.id, bat_dau: T.iso(homNay()), ky_han: 12, cach: 'nien_kim', lai: '', don_vi_lai: 'nam', doi_lai: [], tu_dong_da_tra: false };
+    const v = k || { nhom: '', chu_id: xemAi || D.toi.id, bat_dau: T.iso(homNay()), ky_han: 12, cach: 'nien_kim', lai: '', don_vi_lai: 'nam', doi_lai: [], tu_dong_da_tra: false };
     const laiHien = v.lai === '' ? '' : v.don_vi_lai === 'thang' ? +(v.lai / 12).toFixed(4) : v.lai;
     const r = (n, val, lbl, chk) => `<label><input type="radio" name="${n}" value="${val}" ${chk ? 'checked' : ''}> ${lbl}</label>`;
     moSheet(`<h2 style="font-size:1.25rem">${k ? 'Sửa khoản' : 'Thêm khoản mới'}</h2>
     <form id="kf" class="pf" novalidate>
-      <fieldset class="seg"><legend>Loại khoản</legend>${r('nhom', 'no', 'Đi vay', v.nhom === 'no')}${r('nhom', 'chovay', 'Cho vay', v.nhom === 'chovay')}${r('nhom', 'dautu', 'Đầu tư', v.nhom === 'dautu')}</fieldset>
+      <fieldset class="seg" id="gNhom"><legend>Loại khoản${k ? '' : ' (bấm chọn)'}</legend>${r('nhom', 'no', 'Đi vay', v.nhom === 'no')}${r('nhom', 'chovay', 'Cho vay', v.nhom === 'chovay')}${r('nhom', 'dautu', 'Đầu tư', v.nhom === 'dautu')}</fieldset>
       ${coNhap() && !v.rieng_cua ? `<fieldset class="seg" id="gChu"><legend>Khoản của ai</legend>${D.nguoi.map((x) => r('chu', x.id, esc(x.ten), v.chu_id === x.id)).join('')}</fieldset>` : ''}
       <div class="f2"><div><label for="fTen">Tên khoản</label><input id="fTen" maxlength="200" value="${esc(v.ten || '')}" placeholder="Vay mua xe"></div><div><label for="fDt">Ngân hàng / người</label><input id="fDt" maxlength="200" list="dsDoiTac" autocomplete="off" value="${esc(v.doi_tac || '')}" placeholder="Gõ hoặc chọn trong danh bạ"><datalist id="dsDoiTac">${(D.doi_tac || []).map((d) => `<option value="${esc(d.ten)}"></option>`).join('')}</datalist></div></div>
       <label for="fCach">Cách trả</label><select id="fCach">${Object.keys(CACH).map((c) => `<option value="${c}" ${v.cach === c ? 'selected' : ''}>${CACH[c]}</option>`).join('')}</select>
@@ -508,7 +508,7 @@
     const doc = () => {
       const cach = $('fCach').value, dv = $('fDv').value, r0 = soThapPhan($('fLai').value);
       return {
-        nhom: document.querySelector('input[name=nhom]:checked').value, chu_id: Number(document.querySelector('input[name=chu]:checked')?.value || v.chu_id || D.toi.id),
+        nhom: document.querySelector('input[name=nhom]:checked')?.value || '', chu_id: Number(document.querySelector('input[name=chu]:checked')?.value || v.chu_id || D.toi.id),
         ten: $('fTen').value, doi_tac: $('fDt').value, cach, goc: soTien($('fGoc').value), bat_dau: $('fBd').value,
         ky_han: Number($('fKy').value) || 0, chu_ky: CO_CHU_KY.includes(cach) ? Number($('fChuKy').value) : 1, ngay_chot: $('fChot').value.trim() === '' ? null : Number($('fChot').value),
         lai: dv === 'thang' ? r0 * 12 : r0, don_vi_lai: dv, gia_tri: cach === 'tai_san' ? soTien($('fGt').value) : null,

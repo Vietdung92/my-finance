@@ -39,7 +39,7 @@
       { s: '#bTk', t: 'Bấm vào tên mình để đổi mật khẩu hoặc đăng xuất.' },
     ],
     khoan: [
-      { s: '#kf fieldset:nth-of-type(1)', t: 'Chọn loại khoản: Đi vay, Cho vay hay Đầu tư.' },
+      { s: '#gNhom', t: 'Bấm chọn loại khoản: Đi vay (mình nợ), Cho vay (người khác nợ mình) hay Đầu tư.' },
       { s: '#gChu', t: 'Khoản này của ai: anh Dũng hay Tú.' },
       { s: '#fTen', t: 'Đặt tên cho dễ nhớ, ví dụ Vay mua xe.' },
       { s: '#fDt', t: 'Gõ vài chữ tên ngân hàng hoặc người, app gợi ý từ danh bạ.' },
