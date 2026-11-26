@@ -37,7 +37,7 @@
     return j;
   }
 
-  let D = null, xemAi = 'all', tab = 'all', charts = {}, loc = null, phiaNguoi = 'no';
+  let D = null, xemAi = null, tab = 'all', charts = {}, loc = null, phiaNguoi = 'no';
   const toi = () => D.toi;
   const coNhap = () => D.toi.quyen === 'nhap';
   const nguoi = (id) => D.nguoi.find((x) => x.id === id) || { ten: '?', mau: '#888' };
@@ -45,7 +45,9 @@
 
   async function taiLai() {
     D = await api('GET', '/api/du-lieu');
+    // Hai ví riêng: luôn xem từng người, không gộp. Tú mặc định xem ví anh Dũng.
     if (!coNhap()) xemAi = D.toi.id;
+    else if (!D.nguoi.some((x) => x.id === xemAi)) xemAi = (D.nguoi.find((x) => x.quyen === 'xem') || D.toi).id;
     const today = homNay();
     D.khoan.forEach((k) => Object.assign(k, T.tomTat(k, D.thanh_toan.filter((t) => t.khoan_id === k.id), today)));
     D.noi_bo.forEach((k) => { k.st = T.noiBo(k, D.chuyen_tra.filter((t) => t.noi_bo_id === k.id), today); });
@@ -111,7 +113,7 @@
       $('addBtn').onclick = () => moKhoan(null);
       $('dbBtn').onclick = moDanhBa;
       $('addNb').onclick = () => moNoiBo(null);
-      $('members').onclick = (e) => { const b = e.target.closest('[data-who]'); if (!b) return; xemAi = b.dataset.who === 'all' ? 'all' : Number(b.dataset.who); veSoLieu(); };
+      $('members').onclick = (e) => { const b = e.target.closest('[data-who]'); if (!b) return; xemAi = Number(b.dataset.who); veSoLieu(); };
     }
     $('tabsNguoi').onclick = (e) => { const b = e.target.closest('[data-phia]'); if (b) { phiaNguoi = b.dataset.phia; veSoLieu(); } };
     $('bangNguoi').onclick = (e) => { const r = e.target.closest('[data-ten]'); if (!r) return; loc = r.dataset.ten; tab = 'all'; veSoLieu(); $('list').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
@@ -133,7 +135,7 @@
     const ai = xemAi;
     if (coNhap()) {
       $('members').innerHTML = '<span class="muted" style="font-size:.84rem;align-self:center">Xem số liệu của:</span>' +
-        [{ id: 'all', ten: 'Cả hai' }].concat(D.nguoi).map((x) => `<button class="chip" aria-pressed="${String(ai) === String(x.id)}" data-who="${x.id}">${x.id === 'all' ? '' : av(x.id)}${esc(x.ten)}</button>`).join('');
+        D.nguoi.map((x) => `<button class="chip" aria-pressed="${ai === x.id}" data-who="${x.id}">${av(x.id)}Ví ${esc(x.ten)}</button>`).join('');
     }
     const its = D.khoan.filter((k) => ai === 'all' || k.chu_id === ai);
     const nb = D.noi_bo.filter((k) => ai === 'all' || k.cho_vay_id === ai || k.vay_id === ai);
@@ -367,7 +369,7 @@
   /* ---------- thêm / sửa khoản ---------- */
   function moKhoan(id) {
     const k = id ? D.khoan.find((x) => x.id === id) : null;
-    const v = k || { nhom: 'no', chu_id: D.nguoi.find((x) => x.quyen === 'xem')?.id || D.toi.id, bat_dau: T.iso(homNay()), ky_han: 12, cach: 'nien_kim', lai: '', don_vi_lai: 'nam', doi_lai: [], tu_dong_da_tra: false };
+    const v = k || { nhom: 'no', chu_id: xemAi || D.toi.id, bat_dau: T.iso(homNay()), ky_han: 12, cach: 'nien_kim', lai: '', don_vi_lai: 'nam', doi_lai: [], tu_dong_da_tra: false };
     const laiHien = v.lai === '' ? '' : v.don_vi_lai === 'thang' ? +(v.lai / 12).toFixed(4) : v.lai;
     const r = (n, val, lbl, chk) => `<label><input type="radio" name="${n}" value="${val}" ${chk ? 'checked' : ''}> ${lbl}</label>`;
     moSheet(`<h2 style="font-size:1.25rem">${k ? 'Sửa khoản' : 'Thêm khoản mới'}</h2>

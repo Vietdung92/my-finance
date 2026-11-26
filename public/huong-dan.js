@@ -6,7 +6,7 @@
 
   const MAN = {
     chinh_nhap: [
-      { s: '#members', t: 'Chọn xem số liệu của cả hai, của Tú hay của anh Dũng.' },
+      { s: '#members', t: 'Mỗi người một ví riêng. Chọn xem ví của anh Dũng hay ví của Tú.' },
       { s: '#hero', t: 'Tổng quan: tài sản ròng, nợ còn lại, tiền cho vay và đầu tư, lãi tháng này.' },
       { s: '#cf', t: 'Dòng tiền 12 tháng tới. Cột xanh là tiền thu về, cột cam là tiền phải trả. Chạm vào cột để xem số.' },
       { s: '#alerts', t: 'Những việc cần chú ý: kỳ quá hạn, kỳ sắp đến hạn, sắp hết ưu đãi lãi.' },
