@@ -62,23 +62,21 @@
   function luuMatKhau(id, password) {
     try { if (window.PasswordCredential) navigator.credentials.store(new PasswordCredential({ id, password, name: id })).catch(() => {}); } catch (_) { /* máy không hỗ trợ */ }
   }
+  // Lỗi máy chủ trả về sau khi gửi form (/?loi=sai|khoa): đọc một lần lúc mở trang rồi xóa khỏi thanh địa chỉ
+  const maLoi = new URLSearchParams(location.search).get('loi');
+  let loiDangNhap = maLoi ? (maLoi === 'khoa' ? 'Sai mật khẩu quá nhiều lần. Thử lại sau 15 phút.' : 'Sai tên đăng nhập hoặc mật khẩu.') : '';
+  if (maLoi) history.replaceState(null, '', '/');
   function renderLogin(loi) {
-    $('app').innerHTML = `<div class="login"><form id="lf" class="pf panel" autocomplete="on">
+    // Báo lỗi do máy chủ trả về sau khi gửi form (/?loi=sai|khoa), rồi xóa khỏi thanh địa chỉ
+    loi = loi || loiDangNhap; loiDangNhap = '';
+    $('app').innerHTML = `<div class="login"><form id="lf" class="pf panel" method="post" action="/dang-nhap" autocomplete="on">
       <img src="logo.svg" alt="" class="logo-lon"><h1>My Finance</h1><div class="muted">Đăng nhập để xem số liệu.</div>
       <label for="lTen">Tên đăng nhập</label><input id="lTen" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
       <label for="lMk">Mật khẩu</label><input id="lMk" name="password" type="password" autocomplete="current-password" required>
       <div class="out" id="lErr" ${loi ? '' : 'hidden'}>${esc(loi || '')}</div>
       <button class="btn" type="submit">Đăng nhập</button></form></div>`;
-    $('lf').onsubmit = async (e) => {
-      e.preventDefault();
-      const b = e.target.querySelector('button'); b.disabled = true;
-      try {
-        await api('POST', '/api/dang-nhap', { ten_dang_nhap: $('lTen').value, mat_khau: $('lMk').value });
-        luuMatKhau($('lTen').value.trim().toLowerCase(), $('lMk').value);
-        await taiLai();
-      }
-      catch (err) { if (!$('lErr')) { console.error(err); toast(err.message); return; } $('lErr').textContent = err.message; $('lErr').hidden = false; b.disabled = false; }
-    };
+    // Gửi form thường (tải lại trang) để máy hỏi lưu mật khẩu; chỉ khóa nút cho khỏi bấm 2 lần
+    $('lf').onsubmit = (e) => { e.target.querySelector('button').disabled = true; };
     $('lTen').focus();
   }
 
@@ -713,5 +711,5 @@
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dong(); });
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => D && veSoLieu());
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
-  taiLai().catch(() => { if (!D) renderLogin(); });
+  taiLai().catch(() => { if (!D && !$('lf')) renderLogin(); });
 })();

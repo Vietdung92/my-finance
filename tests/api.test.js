@@ -34,6 +34,18 @@ test('API', { skip: !URL_DB && 'chưa đặt TEST_DATABASE_URL' }, async (t) => 
   };
   const T = await phien('tu'), D = await phien('dung');
 
+  await t.test('đăng nhập bằng form thường (để máy hỏi lưu mật khẩu)', async () => {
+    const gui = (body, h = {}) => fetch(base + '/dang-nhap', { method: 'POST', redirect: 'manual', headers: { 'content-type': 'application/x-www-form-urlencoded', ...h }, body: new URLSearchParams(body) });
+    let r = await gui({ username: 'Dung ', password: 'matkhau-thu-123' }, { origin: base });
+    assert.equal(r.status, 303); assert.equal(r.headers.get('location'), '/');
+    const c = r.headers.get('set-cookie').split(';')[0];
+    assert.equal((await fetch(base + '/api/du-lieu', { headers: { cookie: c } })).status, 200);
+    r = await gui({ username: 'dung', password: 'sai' });
+    assert.equal(r.status, 303); assert.equal(r.headers.get('location'), '/?loi=sai'); assert.equal(r.headers.get('set-cookie'), null);
+    r = await gui({ username: 'dung', password: 'matkhau-thu-123' }, { origin: 'https://trang-la.example' });
+    assert.equal(r.status, 403);
+  });
+
   await t.test('chưa đăng nhập và sai mật khẩu bị chặn', async () => {
     assert.equal((await fetch(base + '/api/du-lieu')).status, 401);
     const r = await fetch(base + '/api/dang-nhap', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ten_dang_nhap: 'tu', mat_khau: 'sai' }) });
