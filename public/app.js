@@ -18,6 +18,7 @@
   const soTien = (s) => Number(String(s || '').replace(/\D/g, '')) || 0;
   const soThapPhan = (s) => Number(String(s || '').trim().replace(/\s/g, '').replace(',', '.'));
   const homNay = () => T.pd(new Date());
+  const MAU_NO = ['#e5484d', '#f76b15', '#f5a524', '#c2440b', '#d6336c', '#a1887f'];
   const NHOM = { no: { ten: 'Đang nợ', c: '--debt' }, chovay: { ten: 'Cho vay', c: '--lend' }, dautu: { ten: 'Đầu tư', c: '--inv' } };
   const CACH = {
     nien_kim: 'Trả đều (gốc + lãi bằng nhau mỗi kỳ)', goc_deu: 'Gốc đều, lãi giảm dần',
@@ -67,7 +68,7 @@
       e.preventDefault();
       const b = e.target.querySelector('button'); b.disabled = true;
       try { await api('POST', '/api/dang-nhap', { ten_dang_nhap: $('lTen').value, mat_khau: $('lMk').value }); await taiLai(); }
-      catch (err) { $('lErr').textContent = err.message; $('lErr').hidden = false; b.disabled = false; }
+      catch (err) { if (!$('lErr')) { console.error(err); toast(err.message); return; } $('lErr').textContent = err.message; $('lErr').hidden = false; b.disabled = false; }
     };
     $('lTen').focus();
   }
@@ -87,16 +88,16 @@
       <div class="ky-dieu"><button class="chip" id="kyLui" aria-label="Kỳ trước">‹</button><b id="kyTen"></b><button class="chip" id="kyToi" aria-label="Kỳ sau">›</button><button class="chip" id="kyNay">Về hiện tại</button></div>
       <div class="ky-so" id="kySo"></div><div id="kyDs"></div></div>
     <div class="grid2">
-      <div class="panel"><div class="ph"><h2>Dòng tiền 12 tháng tới</h2><span class="muted" style="font-size:.82rem">Gốc + lãi theo lịch, chưa trả</span></div>
+      <div class="panel"><div class="ph"><h2 id="cfTen">Dòng tiền 12 tháng tới</h2><span class="muted" style="font-size:.82rem">Gốc + lãi theo lịch, chưa trả</span></div>
         <div class="chartbox"><canvas id="cf" aria-label="Biểu đồ tiền thu về và phải trả 12 tháng tới"></canvas></div>
-        <div class="legend"><span><i class="dot" style="background:var(--inv)"></i>Tiền thu về</span><span><i class="dot" style="background:var(--debt)"></i>Tiền phải trả</span></div></div>
+        <div class="legend"><span id="cfThu"><i class="dot" style="background:var(--inv)"></i>Tiền thu về</span><span><i class="dot" style="background:var(--debt)"></i>Tiền phải trả</span></div></div>
       <div class="panel"><div class="ph"><h2>Cần chú ý</h2><span class="muted" id="alertCount" style="font-size:.82rem"></span></div><div class="alerts" id="alerts"></div></div>
     </div>
     <div class="grid2">
       <div class="panel"><div class="ph"><h2>Các khoản</h2><span class="muted" style="font-size:.82rem">Bấm vào từng khoản để xem lịch trả</span></div>
         <div class="tabs" role="tablist" id="tabs"></div><div id="locChip"></div><div class="list" id="list"></div></div>
       <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
-        <div class="panel"><div class="ph"><h2>Cơ cấu</h2></div><div class="chartbox" style="height:210px"><canvas id="mix" aria-label="Cơ cấu nợ, cho vay, đầu tư"></canvas></div><div class="legend" id="mixLegend"></div></div>
+        <div class="panel"><div class="ph"><h2 id="mixTen">Cơ cấu</h2></div><div class="chartbox" style="height:210px"><canvas id="mix" aria-label="Cơ cấu nợ, cho vay, đầu tư"></canvas></div><div class="legend" id="mixLegend"></div></div>
         <div class="panel"><div class="ph"><h2>Mượn qua lại giữa 2 người</h2></div>
           <div class="flow" id="owes"></div>
           <details style="margin-top:10px"><summary class="muted" style="cursor:pointer;font-size:.86rem">Lịch sử chuyển trả</summary><div class="scroll" style="margin-top:8px"><table id="tx"></table></div></details></div>
@@ -147,7 +148,7 @@
   }
 
   /* Bộ lọc thời gian: tổng tiền trả / thu trong tháng, quý, năm đang chọn của ví đang xem */
-  function veKy(its, nb, ai) {
+  function veKy(its, nb, ai, coLoi) {
     const today = homNay(), K = T.kyKhoang(kyLoai, today, kyBuoc), truoc = T.kyKhoang(kyLoai, today, kyBuoc - 1);
     const r = T.tongKy(its, K.tu, K.den), rt = T.tongKy(its, truoc.tu, truoc.den);
     $('kyLoai').innerHTML = [['thang', 'Tháng'], ['quy', 'Quý'], ['nam', 'Năm']].map(([k, t]) => `<button class="tab" role="tab" aria-selected="${kyLoai === k}" data-ky="${k}">${t}</button>`).join('');
@@ -169,9 +170,13 @@
     const o = (lbl, v, sub, cls) => `<div class="ky-o"><div class="lbl">${lbl}</div><div class="val num ${cls}">${m(v)}</div><div class="sub">${sub}</div></div>`;
     $('kySo').innerHTML =
       o('<i class="dot" style="background:var(--debt)"></i>Phải trả', r.gocTra + r.laiTra, `Gốc ${m(r.gocTra)}<br>Lãi ${m(r.laiTra)}<br>Đã trả ${m(r.daTra)}`, 'out') +
-      o('<i class="dot" style="background:var(--inv)"></i>Thu về', r.gocThu + r.laiThu, `Gốc ${m(r.gocThu)}<br>Lãi ${m(r.laiThu)}<br>Đã thu ${m(r.daThu)}`, 'in') +
-      o('Lãi phải trả', r.laiTra, soSanh(r.laiTra, rt.laiTra), '') +
-      o('Lãi thu về', r.laiThu, soSanh(r.laiThu, rt.laiThu), '') +
+      (coLoi
+        ? o('<i class="dot" style="background:var(--inv)"></i>Thu về', r.gocThu + r.laiThu, `Gốc ${m(r.gocThu)}<br>Lãi ${m(r.laiThu)}<br>Đã thu ${m(r.daThu)}`, 'in') +
+          o('Lãi phải trả', r.laiTra, soSanh(r.laiTra, rt.laiTra), '') +
+          o('Lãi thu về', r.laiThu, soSanh(r.laiThu, rt.laiThu), '')
+        : o('Còn phải trả', Math.max(0, r.gocTra + r.laiTra - r.daTra), r.daTra ? `Đã trả ${m(r.daTra)}` : '', '') +
+          o('Lãi phải trả', r.laiTra, soSanh(r.laiTra, rt.laiTra), '') +
+          o('Gốc phải trả', r.gocTra, soSanh(r.gocTra, rt.gocTra), '')) +
       (nbTra || nbNhan ? `<div class="ky-dong">Mượn qua lại trong kỳ: ${nbTra ? `đã chuyển trả <b>${m(nbTra)}</b>` : ''}${nbTra && nbNhan ? ' · ' : ''}${nbNhan ? `đã nhận <b>${m(nbNhan)}</b>` : ''}</div>` : '') +
       (r.quaHan ? `<div class="ky-dong out"><b>${r.quaHan} kỳ quá hạn</b> trong ${K.ten.toLowerCase()}</div>` : '');
     $('kyDs').innerHTML = r.ds.length
@@ -196,13 +201,32 @@
     if (ai !== 'all') nb.forEach((k) => { const v = k.st.gocCon + k.st.laiCon; if (k.cho_vay_id === ai) nbThu += v; else nbTra += v; });
     ts += nbThu; no += nbTra;
     const y = today.getFullYear(), mo = today.getMonth();
-    let laiTra = 0, laiThu = 0;
-    its.forEach((k) => k.lich.forEach((e) => { if (e.ngay.getFullYear() === y && e.ngay.getMonth() === mo) { if (k.nhom === 'no') laiTra += e.lai; else laiThu += e.lai; } }));
+    const cacNo = its.filter((k) => k.nhom === 'no');
+    // Ví này có khoản sinh lời không (cho vay, đầu tư, người nhà đang nợ)? Không có thì màn chính chỉ nói về nợ.
+    const coLoi = ts > 0 || its.some((k) => k.nhom !== 'no');
+    let gocNo = 0, gocDaTra = 0;
+    cacNo.forEach((k) => { gocNo += Number(k.goc) || 0; gocDaTra += (k.daTraPct || 0) * (Number(k.goc) || 0); });
+    nb.forEach((k) => { if (ai !== 'all' && k.vay_id === ai) { gocNo += k.st.gocCon + k.st.gocTra; gocDaTra += k.st.gocTra; } });
+    const pctTra = gocNo ? Math.round(gocDaTra / gocNo * 100) : 0;
+    let gocThang = 0, laiThang = 0, daTraThang = 0, laiThu = 0;
+    its.forEach((k) => k.lich.forEach((e) => {
+      if (e.ngay.getFullYear() !== y || e.ngay.getMonth() !== mo) return;
+      if (k.nhom === 'no') { gocThang += e.goc; laiThang += e.lai; if (e.tt === 'xong') daTraThang += e.goc + e.lai; } else laiThu += e.lai;
+    }));
+    let toi = null; cacNo.forEach((k) => { if (k.kyToi && (!toi || k.kyToi.ngay < toi.e.ngay)) toi = { k, e: k.kyToi }; });
+    const soQuaHan = cacNo.reduce((a, k) => a + k.quaHan.length, 0);
+    $('hero').className = 'hero panel' + (coLoi ? ' co-loi' : '');
     $('hero').innerHTML = `
-      <div class="tile big"><span class="lbl">Tài sản ròng của ${esc(tenAi)}</span><span class="val num">${m(ts - no)}</span><span class="sub">= Tài sản ${m(ts)} − Nợ ${m(no)}</span></div>
-      <div class="tile"><span class="lbl"><i class="dot" style="background:var(--debt)"></i>Nợ còn lại</span><span class="val num">${m(no)}</span><span class="sub">${its.filter((i) => i.nhom === 'no').length} khoản${nbTra ? ` · gồm ${m(nbTra)} mượn người nhà` : ''}</span></div>
-      <div class="tile"><span class="lbl"><i class="dot" style="background:var(--lend)"></i>Cho vay + <i class="dot" style="background:var(--inv);margin-left:4px"></i>Đầu tư</span><span class="val num">${m(ts)}</span><span class="sub">${nbThu ? `gồm ${m(nbThu)} người nhà đang nợ` : 'theo giá trị hiện tại'}</span></div>
-      <div class="tile"><span class="lbl">Lãi tháng ${mo + 1}</span><span class="val num"><span class="in">+${m(laiThu)}</span></span><span class="sub">Phải trả <b class="out">−${m(laiTra)}</b> · Ròng <b>${m(laiThu - laiTra)}</b></span></div>`;
+      <div class="tile big"><span class="lbl">Nợ còn phải trả${ai === 'all' ? '' : ` · Ví ${esc(tenAi)}`}</span><span class="val num">${m(no)}</span>
+        <div class="bar hero-bar" aria-hidden="true"><i style="width:${pctTra}%"></i></div>
+        <span class="sub">Đã trả <b>${pctTra}%</b> gốc · ${cacNo.length} khoản${nbTra ? ` · gồm ${m(nbTra)} mượn người nhà` : ''}</span>
+        ${coLoi ? `<span class="sub">Tài sản ròng <b>${m(ts - no)}</b> (cho vay, đầu tư ${m(ts)} − nợ)</span>` : ''}</div>
+      <div class="tile"><span class="lbl">Tháng ${mo + 1} phải trả</span><span class="val num out">${m(gocThang + laiThang)}</span>
+        <span class="sub">Gốc ${m(gocThang)} · Lãi ${m(laiThang)}${daTraThang ? `<br>Đã trả ${m(daTraThang)}` : ''}</span></div>
+      <div class="tile"><span class="lbl">Kỳ trả tới</span>${toi
+        ? `<span class="val num">${m(toi.e.goc + toi.e.lai)}</span><span class="sub">${dd(toi.e.ngay)} · ${esc(toi.k.doi_tac)}${soQuaHan ? `<br><b class="out">${soQuaHan} kỳ quá hạn</b>` : ''}</span>`
+        : `<span class="val num">—</span><span class="sub">${soQuaHan ? `<b class="out">${soQuaHan} kỳ quá hạn</b>` : 'Không còn kỳ nào'}</span>`}</div>
+      ${coLoi ? `<div class="tile"><span class="lbl"><i class="dot" style="background:var(--lend)"></i>Cho vay + Đầu tư</span><span class="val num in">${m(ts)}</span><span class="sub">${nbThu ? `gồm ${m(nbThu)} người nhà đang nợ · ` : ''}lãi tháng ${mo + 1}: +${m(laiThu)}</span></div>` : ''}`;
 
     /* dòng tiền 12 tháng */
     const labels = [], thu = [], chi = [];
@@ -212,7 +236,7 @@
       its.forEach((kh) => kh.lich.forEach((e) => { if (e.tt !== 'xong' && e.ngay.getFullYear() === d.getFullYear() && e.ngay.getMonth() === d.getMonth()) { if (kh.nhom === 'no') b += e.goc + e.lai; else a += e.goc + e.lai; } }));
       thu.push(a); chi.push(-b);
     }
-    veDongTien(labels, thu, chi);
+    veDongTien(labels, thu, chi, coLoi && thu.some(Boolean));
 
     /* cảnh báo */
     const al = [];
@@ -242,7 +266,11 @@
 
     /* danh sách khoản */
     const dem = { all: its.length, no: 0, chovay: 0, dautu: 0 }; its.forEach((i) => dem[i.nhom]++);
-    $('tabs').innerHTML = [['all', 'Tất cả'], ['no', 'Đang nợ'], ['chovay', 'Cho vay'], ['dautu', 'Đầu tư']].map(([k, t]) => `<button class="tab" role="tab" aria-selected="${tab === k}" data-tab="${k}">${t} <span class="muted">${dem[k]}</span></button>`).join('');
+    // Ẩn tab không có khoản; chỉ có 1 nhóm thì ẩn luôn thanh tab
+    if (tab !== 'all' && !dem[tab]) tab = 'all';
+    const tabCo = [['all', 'Tất cả'], ['no', 'Đang nợ'], ['chovay', 'Cho vay'], ['dautu', 'Đầu tư']].filter(([k]) => k === 'all' || dem[k]);
+    $('tabs').hidden = tabCo.length <= 2;
+    $('tabs').innerHTML = tabCo.map(([k, t]) => `<button class="tab" role="tab" aria-selected="${tab === k}" data-tab="${k}">${t} <span class="muted">${dem[k]}</span></button>`).join('');
     $('locChip').innerHTML = loc ? `<button class="chip" data-boloc="1" style="margin-bottom:8px">Đang xem: <b>${esc(loc)}</b> &nbsp;✕ Bỏ lọc</button>` : '';
     const ds = its.filter((k) => (tab === 'all' || k.nhom === tab) && (!loc || k.doi_tac.toLowerCase() === loc.toLowerCase())).sort((a, b) => b.conLai - a.conLai);
     $('list').innerHTML = ds.map((k) => {
@@ -257,6 +285,7 @@
     }).join('') || `<div class="empty">${coNhap() ? 'Chưa có khoản nào. Bấm "+ Thêm khoản" để nhập khoản đầu tiên.' : 'Chưa có khoản nào được nhập.'}</div>`;
 
     /* theo từng người */
+    if (phiaNguoi === 'chovay' && !its.some((k) => k.nhom === 'chovay')) phiaNguoi = 'no';
     const nhomPhia = phiaNguoi === 'no' ? ['no'] : ['chovay'];
     const theo = {};
     its.filter((k) => nhomPhia.includes(k.nhom)).forEach((k) => {
@@ -270,6 +299,7 @@
     const lon = Math.max(1, ...nhomNguoi.map((g) => g.goc));
     const demNo = new Set(its.filter((k) => k.nhom === 'no').map((k) => k.doi_tac.trim().toLowerCase())).size;
     const demCho = new Set(its.filter((k) => k.nhom === 'chovay').map((k) => k.doi_tac.trim().toLowerCase())).size;
+    $('tabsNguoi').hidden = !demCho;
     $('tabsNguoi').innerHTML = `<button class="tab" role="tab" aria-selected="${phiaNguoi === 'no'}" data-phia="no">Mình đang nợ <span class="muted">${demNo}</span></button><button class="tab" role="tab" aria-selected="${phiaNguoi === 'chovay'}" data-phia="chovay">Đang nợ mình <span class="muted">${demCho}</span></button>`;
     const dtTheoTen = (ten) => (D.doi_tac || []).find((d) => d.ten.toLowerCase() === ten.toLowerCase());
     $('bangNguoi').innerHTML = nhomNguoi.length ? nhomNguoi.map((g) => {
@@ -282,9 +312,19 @@
     }).join('') : `<div class="empty">${phiaNguoi === 'no' ? 'Chưa có khoản đi vay nào.' : 'Chưa có khoản cho vay nào.'}</div>`;
 
     /* cơ cấu */
-    const nhomSo = ['no', 'chovay', 'dautu'].map((k) => ({ k, t: NHOM[k].ten, v: its.filter((i) => i.nhom === k).reduce((a, i) => a + i.conLai, 0) }));
+    // Chỉ có nợ: vòng tròn chia nợ theo từng người cho vay; có cho vay/đầu tư thì chia theo nhóm
+    let nhomSo;
+    if (coLoi) nhomSo = ['no', 'chovay', 'dautu'].map((k) => ({ t: NHOM[k].ten, c: css(NHOM[k].c), v: its.filter((i) => i.nhom === k).reduce((a, i) => a + i.conLai, 0) }));
+    else {
+      const g = {}; cacNo.forEach((k) => { const t = k.doi_tac.trim(), key = t.toLowerCase(); (g[key] || (g[key] = { t, v: 0 })).v += k.conLai; });
+      nb.forEach((k) => { if (k.vay_id === ai) { const t = nguoi(k.cho_vay_id).ten, key = t.toLowerCase(); (g[key] || (g[key] = { t, v: 0 })).v += k.st.gocCon + k.st.laiCon; } });
+      let ds = Object.values(g).filter((x) => x.v > 0).sort((a, b) => b.v - a.v);
+      if (ds.length > 6) ds = [...ds.slice(0, 5), { t: 'Khác', v: ds.slice(5).reduce((a, x) => a + x.v, 0) }];
+      nhomSo = ds.map((x, i) => ({ ...x, c: MAU_NO[i % MAU_NO.length] }));
+    }
+    $('mixTen').textContent = coLoi ? 'Cơ cấu' : 'Nợ theo người cho vay';
     veCoCau(nhomSo);
-    $('mixLegend').innerHTML = nhomSo.map((g) => `<span><i class="dot" style="background:var(${NHOM[g.k].c})"></i>${g.t} <b class="num" style="color:var(--ink)">${m(g.v)}</b></span>`).join('');
+    $('mixLegend').innerHTML = nhomSo.map((g) => `<span><i class="dot" style="background:${g.c}"></i>${esc(g.t)} <b class="num" style="color:var(--ink)">${m(g.v)}</b></span>`).join('') || '<span class="muted">Chưa có khoản nợ nào.</span>';
 
     /* mượn qua lại */
     $('owes').innerHTML = nb.length ? nb.map((k) => {
@@ -311,9 +351,9 @@
     its.forEach((k) => k.lich.forEach((e) => { if ((e.ngay >= today && e.ngay <= het) || e.tt === 'quahan') ev.push({ k, e }); }));
     ev.sort((a, b) => a.e.ngay - b.e.ngay);
     let tin = 0, tout = 0; ev.forEach(({ k, e }) => { if (k.nhom === 'no') tout += e.goc + e.lai; else tin += e.goc + e.lai; });
-    $('calSum').innerHTML = `Thu <b class="in">+${m(tin)}</b> · Trả <b class="out">−${m(tout)}</b>`;
+    $('calSum').innerHTML = tin ? `Thu <b class="in">+${m(tin)}</b> · Trả <b class="out">−${m(tout)}</b>` : `Phải trả <b class="out">${m(tout)}</b>`;
     $('cal').innerHTML = ev.map(({ k, e }) => dongLich(k, e)).join('') || '<div class="muted">Không có khoản nào đến hạn.</div>';
-    veKy(its, nb, ai);
+    veKy(its, nb, ai, coLoi);
 
     /* nhật ký */
     $('log').innerHTML = '<tr><th>Lúc</th><th>Người làm</th><th style="text-align:left">Việc</th></tr>' + D.nhat_ky.map((l) => {
@@ -324,24 +364,28 @@
 
   /* ---------- biểu đồ ---------- */
   function nen() { Chart.defaults.font.family = css('--f-body'); Chart.defaults.color = css('--muted'); }
-  function veDongTien(labels, thu, chi) {
+  function veDongTien(labels, thu, chi, haiChieu) {
     nen(); charts.cf && charts.cf.destroy();
-    const trong = ![...thu, ...chi].some(Boolean); // chưa có khoản nào: giữ trục ±1 triệu, khỏi hiện "1 đ, 1 đ"
+    // Chỉ có nợ: vẽ cột phải trả hướng lên cho dễ đọc, bỏ phần "thu về"
+    $('cfTen').textContent = haiChieu ? 'Dòng tiền 12 tháng tới' : 'Phải trả 12 tháng tới';
+    $('cfThu').hidden = !haiChieu;
+    if (!haiChieu) { chi = chi.map((v) => -v); thu = null; }
+    const trong = ![...(thu || []), ...chi].some(Boolean); // chưa có khoản nào: giữ trục ±1 triệu, khỏi hiện "1 đ, 1 đ"
     charts.cf = new Chart($('cf'), {
       type: 'bar',
       data: { labels, datasets: [
-        { label: 'Thu về', data: thu, backgroundColor: css('--inv'), borderRadius: 4, borderSkipped: 'start', stack: 's' },
+        ...(thu ? [{ label: 'Thu về', data: thu, backgroundColor: css('--inv'), borderRadius: 4, borderSkipped: 'start', stack: 's' }] : []),
         { label: 'Phải trả', data: chi, backgroundColor: css('--debt'), borderRadius: 4, borderSkipped: 'start', stack: 's' }] },
       options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${m(Math.abs(c.raw))}`, footer: (it) => 'Ròng: ' + m(it.reduce((a, i) => a + i.raw, 0)) } } },
-        scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ...(trong ? { min: -1e6, max: 1e6 } : {}), grid: { color: css('--line') }, border: { display: false }, ticks: { callback: (v) => m(v) } } } },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${m(Math.abs(c.raw))}`, footer: (it) => (thu ? 'Ròng: ' + m(it.reduce((a, i) => a + i.raw, 0)) : '') } } },
+        scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ...(trong ? (thu ? { min: -1e6, max: 1e6 } : { min: 0, max: 1e6 }) : {}), grid: { color: css('--line') }, border: { display: false }, ticks: { callback: (v) => m(v) } } } },
     });
   }
   function veCoCau(g) {
     nen(); charts.mix && charts.mix.destroy();
     charts.mix = new Chart($('mix'), {
       type: 'doughnut',
-      data: { labels: g.map((x) => x.t), datasets: [{ data: g.map((x) => x.v), backgroundColor: g.map((x) => css(NHOM[x.k].c)), borderColor: css('--panel'), borderWidth: 2 }] },
+      data: { labels: g.map((x) => x.t), datasets: [{ data: g.map((x) => x.v), backgroundColor: g.map((x) => x.c), borderColor: css('--panel'), borderWidth: 2 }] },
       options: { maintainAspectRatio: false, cutout: '64%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.label}: ${m(c.raw)}` } } } },
     });
   }
