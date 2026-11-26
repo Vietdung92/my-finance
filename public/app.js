@@ -33,7 +33,7 @@
   async function api(method, url, body) {
     const r = await fetch(url, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin' });
     const j = await r.json().catch(() => ({}));
-    if (r.status === 401 && url !== '/api/dang-nhap') { D = null; renderLogin(); throw new Error('Cần đăng nhập lại.'); }
+    if (r.status === 401 && url !== '/api/dang-nhap' && !url.startsWith('/api/passkey/vao')) { D = null; renderLogin(); throw new Error('Cần đăng nhập lại.'); }
     if (!r.ok) throw new Error(j.loi || 'Có lỗi, thử lại.');
     return j;
   }
@@ -76,10 +76,58 @@
       <label for="lTen">Tên đăng nhập</label><input id="lTen" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
       <label for="lMk">Mật khẩu</label><input id="lMk" name="password" type="password" autocomplete="current-password" required>
       <div class="out" id="lErr" ${loi ? '' : 'hidden'}>${esc(loi || '')}</div>
-      <button class="btn" type="submit">Đăng nhập</button></form></div>`;
+      <button class="btn" type="submit">Đăng nhập</button>
+      ${coPasskey() ? `<div class="pk-hoac muted">hoặc</div><button class="btn ghost" type="button" id="lPk">${ICON_VT} Mở bằng vân tay / khuôn mặt</button>` : ''}</form></div>`;
     // Gửi form thường (tải lại trang) để máy hỏi lưu mật khẩu; chỉ khóa nút cho khỏi bấm 2 lần
     $('lf').onsubmit = (e) => { e.target.querySelector('button').disabled = true; };
-    $('lTen').focus();
+    if (coPasskey()) $('lPk').onclick = moBangPasskey;
+    // Máy này đã bật vân tay: không bật bàn phím, để anh bấm nút vân tay luôn
+    if (!(coPasskey() && daBatPk())) $('lTen').focus();
+  }
+
+  /* ---------- vân tay / khuôn mặt (passkey) ---------- */
+  const ICON_VT = '<span aria-hidden="true">☝</span>';
+  const coPasskey = () => !!(window.PublicKeyCredential && window.SimpleWebAuthnBrowser);
+  const daBatPk = () => { try { return localStorage.getItem('mf-passkey') === '1'; } catch (_) { return false; } };
+  const ghiBatPk = (v) => { try { if (v) localStorage.setItem('mf-passkey', '1'); else localStorage.removeItem('mf-passkey'); } catch (_) { /* bỏ qua */ } };
+  const tenMay = () => { const u = navigator.userAgent; return /iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) || (/Macintosh/.test(u) && navigator.maxTouchPoints > 1) ? 'iPad' : /Android/.test(u) ? 'Android' : /Mac/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Windows' : 'Máy khác'; };
+  const loiPk = (e) => (e && (e.name === 'NotAllowedError' || e.name === 'AbortError') ? 'Đã hủy hoặc hết thời gian. Bấm lại để thử.' : (e && e.message) || 'Có lỗi, thử lại.');
+  async function moBangPasskey() {
+    const b = $('lPk'); b.disabled = true;
+    try {
+      const opt = await api('POST', '/api/passkey/vao/bat-dau', {});
+      const phanHoi = await SimpleWebAuthnBrowser.startAuthentication({ optionsJSON: opt });
+      await api('POST', '/api/passkey/vao/xong', { phan_hoi: phanHoi });
+      ghiBatPk(true);
+      await taiLai();
+    } catch (e) {
+      if ($('lErr')) { $('lErr').textContent = loiPk(e); $('lErr').hidden = false; }
+      if (b.isConnected) b.disabled = false;
+    }
+  }
+  async function vePasskey() {
+    const tt = $('pkTt'); if (!tt) return;
+    if (!coPasskey()) { tt.textContent = 'Trình duyệt trên máy này chưa hỗ trợ. Dùng Chrome (Android) hoặc Safari (iPhone).'; return; }
+    let ds = [];
+    try { ds = await api('GET', '/api/passkey'); } catch (e) { tt.textContent = e.message; return; }
+    if (!$('pkTt')) return;
+    tt.textContent = ds.length ? `Đã bật trên ${ds.length} máy. Bật thêm cho máy này nếu chưa có trong danh sách.` : 'Chưa bật. Bật xong, lần sau mở app chỉ cần bấm nút vân tay ở màn đăng nhập.';
+    $('pkDs').innerHTML = ds.map((d) => `<div class="pk-may"><span>${esc(d.ten_may || 'Máy')} · bật ${dd(d.tao_luc.slice(0, 10))}${d.dung_luc ? ` · dùng lần cuối ${dd(d.dung_luc.slice(0, 10))}` : ''}</span><button class="chip" data-pkxoa="${esc(d.id)}">Xóa</button></div>`).join('');
+    $('pkDs').querySelectorAll('[data-pkxoa]').forEach((b) => { b.onclick = () => xoaHaiBuoc(b, () => api('POST', '/api/passkey/xoa', { id: b.dataset.pkxoa }), 'Đã xóa máy này.'); });
+    $('pkBat').hidden = false;
+    $('pkBat').onclick = async () => {
+      const nut = $('pkBat'); nut.disabled = true;
+      try {
+        const opt = await api('POST', '/api/passkey/dang-ky/bat-dau', {});
+        const phanHoi = await SimpleWebAuthnBrowser.startRegistration({ optionsJSON: opt });
+        await api('POST', '/api/passkey/dang-ky/xong', { phan_hoi: phanHoi, ten_may: tenMay() });
+        ghiBatPk(true);
+        toast('Đã bật. Lần sau bấm nút vân tay ở màn đăng nhập.');
+        vePasskey();
+      } catch (e) {
+        toast(e && e.name === 'InvalidStateError' ? 'Máy này đã bật rồi.' : loiPk(e));
+      } finally { if (nut.isConnected) nut.disabled = false; }
+    };
   }
 
   /* ---------- màn chính ---------- */
@@ -646,9 +694,12 @@
       <span class="pill ${coNhap() ? 'ok' : 'warn'}">${coNhap() ? 'Nhập liệu: thêm, sửa mọi khoản' : 'Xem, tự thêm khoản của mình'}</span></div></div>
       <div class="tb-khung"><div><b>Thông báo mỗi sáng</b><div class="muted" id="tbTt" style="font-size:.86rem">Đang kiểm tra…</div></div>
         <div class="acts"><button class="btn sm" id="tbBat" hidden>Bật thông báo</button><button class="btn sm ghost" id="tbThu" hidden>Gửi thử</button><button class="btn sm ghost" id="tbTat" hidden>Tắt</button></div></div>
+      <div class="tb-khung" id="pkKhung"><div><b>${ICON_VT} Mở bằng vân tay / khuôn mặt</b><div class="muted" id="pkTt" style="font-size:.86rem">Đang kiểm tra…</div></div>
+        <div id="pkDs"></div><div class="acts"><button class="btn sm" id="pkBat" hidden>Bật trên máy này</button></div></div>
       <button class="btn ghost" id="bMk">Đổi mật khẩu</button><button class="btn ghost" id="bOut">Đăng xuất</button>`);
     $('bMk').onclick = moDoiMatKhau;
     veThongBao();
+    vePasskey();
     $('bOut').onclick = async () => { await api('POST', '/api/dang-xuat', {}); dong(); D = null; renderLogin(); };
   }
 

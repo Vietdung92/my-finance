@@ -14,6 +14,7 @@ const { Pool, types } = require('pg');
 types.setTypeParser(1082, (v) => v);
 const { migrate } = require('./db/migrate');
 const thongBao = require('./thong-bao');
+const passkey = require('./passkey');
 
 const COOKIE = 'mf_phien';
 const NHOM = ['no', 'chovay', 'dautu'];
@@ -89,6 +90,10 @@ function createApp(pool, opt = {}) {
   /* ---------- đăng nhập ---------- */
   const thu = new Map(); // chặn đoán mật khẩu: 8 lần sai / 15 phút cho mỗi IP + tên
   // Trả 'ok' (đã đặt cookie), 'khoa' (sai quá nhiều lần) hoặc 'sai'
+  const datCookie = (res, u) => {
+    const token = jwt.sign({ id: u.id, p: u.phien }, SECRET, { expiresIn: '30d' });
+    res.cookie(COOKIE, token, { httpOnly: true, sameSite: 'strict', secure, maxAge: 30 * 864e5, path: '/' });
+  };
   const dangNhap = async (req, res, tenVao, mkVao) => {
     const ten = String(tenVao || '').trim().toLowerCase();
     const key = req.ip + '|' + ten, now = Date.now();
@@ -98,8 +103,7 @@ function createApp(pool, opt = {}) {
     const ok = u && await bcrypt.compare(String(mkVao || ''), u.mat_khau_hash);
     if (!ok) { t.push(now); thu.set(key, t); return 'sai'; }
     thu.delete(key);
-    const token = jwt.sign({ id: u.id, p: u.phien }, SECRET, { expiresIn: '30d' });
-    res.cookie(COOKIE, token, { httpOnly: true, sameSite: 'strict', secure, maxAge: 30 * 864e5, path: '/' });
+    datCookie(res, u);
     return 'ok';
   };
   app.post('/api/dang-nhap', async (req, res, next) => {
@@ -137,7 +141,8 @@ function createApp(pool, opt = {}) {
   const coNoiDung = (req) => Number(req.headers['content-length'] || 0) > 0 || !!req.headers['transfer-encoding'];
   const chiJson = (req, res, next) => (!coNoiDung(req) || req.is('application/json') ? next() : res.status(415).json({ loi: 'Sai định dạng.' }));
 
-  app.use('/api', (req, res, next) => (req.path === '/dang-nhap' ? next() : canDangNhap(req, res, next)));
+  const congKhai = ['/dang-nhap', ...passkey.CONG_KHAI];
+  app.use('/api', (req, res, next) => (congKhai.includes(req.path) ? next() : canDangNhap(req, res, next)));
   app.use('/api', (req, res, next) => (req.method === 'GET' ? next() : chiJson(req, res, next)));
 
   app.post('/api/doi-mat-khau', async (req, res, next) => {
@@ -382,12 +387,15 @@ function createApp(pool, opt = {}) {
   });
 
   thongBao.caiDat(app, pool, opt);
+  passkey.caiDat(app, { q, datCookie, ghiNhatKy, Loi });
 
   app.use('/api', (req, res) => res.status(404).json({ loi: 'Không có địa chỉ này.' }));
 
   /* ---------- trang web ---------- */
   // no-cache: trình duyệt vẫn giữ bản cũ nhưng hỏi lại máy chủ mỗi lần (ETag), cập nhật xong là thấy ngay
   app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html', setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache') }));
+  // Thư viện passkey cho trình duyệt, phục vụ từ node_modules (CSP chỉ cho script cùng nguồn)
+  app.get('/webauthn.js', (req, res) => res.set('Cache-Control', 'no-cache').sendFile(path.join(__dirname, 'node_modules/@simplewebauthn/browser/dist/bundle/index.umd.min.js')));
   app.get('/suc-khoe', async (req, res) => { try { await q('SELECT 1'); res.send('ok'); } catch { res.status(500).send('db'); } });
 
   // eslint-disable-next-line no-unused-vars

@@ -89,6 +89,7 @@
     taikhoan: [
       { s: '#tbBat', t: 'Bật để mỗi sáng 7 giờ nhận thông báo kỳ sắp đến hạn, quá hạn.' },
       { s: '#tbThu', t: 'Gửi thử một thông báo để xem máy đã nhận được chưa.' },
+      { s: '#pkBat', t: 'Bật mở app bằng vân tay / khuôn mặt cho máy này. Lần sau bấm nút vân tay ở màn đăng nhập.' },
       { s: '#bMk', t: 'Đổi mật khẩu đăng nhập.' },
       { s: '#bOut', t: 'Đăng xuất khỏi máy này.' },
     ],
