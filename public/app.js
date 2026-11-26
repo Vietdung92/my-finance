@@ -41,6 +41,8 @@
   let kyLoai = 'thang', kyBuoc = 0;
   let D = null, xemAi = null, tab = 'all', charts = {}, loc = null, phiaNguoi = 'no';
   const toi = () => D.toi;
+  // Khoản anh Dũng tự nhập (rieng_cua) chỉ người nhập sửa được; còn lại chỉ tài khoản nhập liệu sửa
+  const suaKhoan = (k) => (k.rieng_cua ? k.rieng_cua === D.toi.id : coNhap());
   const coNhap = () => D.toi.quyen === 'nhap';
   const nguoi = (id) => D.nguoi.find((x) => x.id === id) || { ten: '?', mau: '#888' };
   const av = (id) => { const x = nguoi(id); return `<span class="av" style="background:${esc(x.mau)}">${esc(x.ten[0] || '?')}</span>`; };
@@ -91,7 +93,8 @@
         <button class="tk-nut" id="bTk" aria-label="Tài khoản: đổi mật khẩu, đăng xuất">${av(toi().id)}<span class="tk-ten">${esc(toi().ten)}</span><span aria-hidden="true">▾</span></button></div>
     </div>
     ${coNhap() ? `<div class="thanh-nhap"><div class="chips" id="members" role="group" aria-label="Xem ví của ai"></div>
-      <div class="acts"><button class="btn sm" id="addBtn">+ Thêm khoản</button><button class="btn sm ghost" id="addNb">+ Khoản mượn</button><button class="btn sm ghost" id="dbBtn">Danh bạ</button></div></div>` : ''}
+      <div class="acts"><button class="btn sm" id="addBtn">+ Thêm khoản</button><button class="btn sm ghost" id="addNb">+ Khoản mượn</button><button class="btn sm ghost" id="dbBtn">Danh bạ</button></div></div>`
+      : `<div class="thanh-nhap"><div class="acts"><button class="btn sm" id="addBtn">+ Thêm khoản</button></div></div>`}
     <div class="hero panel" id="hero"></div>
     <div class="panel" id="pKy"><div class="ph"><h2>Theo thời gian</h2><div class="tabs ky-loai" role="tablist" id="kyLoai"></div></div>
       <div class="ky-dieu"><button class="chip" id="kyLui" aria-label="Kỳ trước">‹</button><b id="kyTen"></b><button class="chip" id="kyToi" aria-label="Kỳ sau">›</button><button class="chip" id="kyNay">Về hiện tại</button></div>
@@ -123,8 +126,8 @@
     $('app').innerHTML = khung();
     $('bTk').onclick = moTaiKhoan;
     $('bHd').onclick = () => HuongDan.mo(coNhap());
+    $('addBtn').onclick = () => moKhoan(null);
     if (coNhap()) {
-      $('addBtn').onclick = () => moKhoan(null);
       $('dbBtn').onclick = moDanhBa;
       $('addNb').onclick = () => moNoiBo(null);
       $('members').onclick = (e) => { const b = e.target.closest('[data-who]'); if (!b) return; xemAi = Number(b.dataset.who); veSoLieu(); };
@@ -288,10 +291,10 @@
       const sub = k.cach === 'tai_san' ? `Mua ${m(k.goc)} · chênh lệch <span class="${k.gia_tri >= k.goc ? 'in' : 'out'}">${k.gia_tri >= k.goc ? '+' : '−'}${m(Math.abs(k.gia_tri - k.goc))}</span>`
         : `${k.kyToi ? `Kỳ tới ${dd(k.kyToi.ngay)}: ${m(k.kyToi.goc + k.kyToi.lai)}` : 'Đã hết lịch'} · ${pct}% gốc đã ${k.nhom === 'no' ? 'trả' : 'thu'}`;
       return `<div class="row" tabindex="0" data-id="${k.id}">
-        <div><div class="name">${esc(k.ten)} · ${esc(k.doi_tac)} ${st}</div><div class="meta">${av(k.chu_id)} ${sub}</div></div>
+        <div><div class="name">${esc(k.ten)} · ${esc(k.doi_tac)} ${st}${k.rieng_cua && k.rieng_cua !== toi().id ? ` <span class="pill">${esc(nguoi(k.rieng_cua).ten)} tự nhập</span>` : ''}</div><div class="meta">${av(k.chu_id)} ${sub}</div></div>
         <div class="amt num" style="color:var(${k.nhom === 'no' ? '--crit' : '--ink'})">${k.nhom === 'no' ? '−' : ''}${m(k.conLai)}</div>
         ${pct == null ? '' : `<div class="bar"><i style="width:${pct}%;background:var(${NHOM[k.nhom].c})"></i></div>`}</div>`;
-    }).join('') || `<div class="empty">${coNhap() ? 'Chưa có khoản nào. Bấm "+ Thêm khoản" để nhập khoản đầu tiên.' : 'Chưa có khoản nào được nhập.'}</div>`;
+    }).join('') || `<div class="empty">Chưa có khoản nào. Bấm "+ Thêm khoản" để nhập khoản đầu tiên.</div>`;
 
     /* theo từng người */
     if (phiaNguoi === 'chovay' && !its.some((k) => k.nhom === 'chovay')) phiaNguoi = 'no';
@@ -424,10 +427,11 @@
   function moChiTiet(id) {
     const k = D.khoan.find((x) => x.id === id); if (!k) return;
     const ky = k.lich.findIndex((e) => e.tt === 'chua');
+    const sua = suaKhoan(k);
     const laiTxt = k.cach === 'tai_san' ? '—' : k.don_vi_lai === 'thang' ? `${+(k.lai / 12).toFixed(4)}%/tháng` : `${k.lai}%/năm`;
     moSheet(`<div><div class="muted" style="font-size:.8rem">${NHOM[k.nhom].ten} · ${av(k.chu_id)} ${esc(nguoi(k.chu_id).ten)}</div>
       <h2 style="font-size:1.3rem">${esc(k.ten)} · ${esc(k.doi_tac)}</h2><div class="muted" style="font-size:.86rem">${CACH[k.cach]}${k.ghi_chu ? '. ' + esc(k.ghi_chu) : ''}</div></div>
-      ${coNhap() ? `<div class="acts"><button class="btn sm" id="bSua">Sửa khoản</button><button class="btn sm ghost" id="bXoa">Xóa</button></div>` : ''}
+      ${sua ? `<div class="acts"><button class="btn sm" id="bSua">Sửa khoản</button><button class="btn sm ghost" id="bXoa">Xóa</button></div>` : k.rieng_cua ? `<div class="hint">${esc(nguoi(k.rieng_cua).ten)} tự nhập khoản này, chỉ ${esc(nguoi(k.rieng_cua).ten)} sửa, xóa được.</div>` : ''}
       <div class="kv">
         <div><span>Số tiền gốc</span><b class="num">${m(k.goc)}</b></div>
         <div><span>${k.cach === 'tai_san' ? 'Giá ước tính' : 'Còn lại'}</span><b class="num">${m(k.conLai)}</b></div>
@@ -439,12 +443,12 @@
         ${k.cach === 'tai_san' ? '' : `<div><span>Kỳ đã qua</span><b>${k.tu_dong_da_tra ? 'Tự coi là đã trả' : 'Phải ghi nhận'}</b></div>`}
       </div>
       ${k.lich.length > 2 ? '<div class="chartbox" style="height:180px"><canvas id="bal" aria-label="Dư nợ theo thời gian"></canvas></div>' : ''}
-      ${k.lich.length ? `<div class="scroll" id="lichTra"><table><tr><th>Kỳ</th><th>Ngày</th><th>Gốc</th><th>Lãi</th><th>Tổng</th><th>Dư sau kỳ</th>${coNhap() ? '<th></th>' : ''}</tr>
+      ${k.lich.length ? `<div class="scroll" id="lichTra"><table><tr><th>Kỳ</th><th>Ngày</th><th>Gốc</th><th>Lãi</th><th>Tổng</th><th>Dư sau kỳ</th>${sua ? '<th></th>' : ''}</tr>
         ${k.lich.map((e, i) => `<tr class="${e.tt === 'quahan' ? 'over' : i === ky ? 'next' : e.tt === 'xong' ? 'past' : ''}"><td>${i + 1}${e.tt === 'xong' ? ' ✓' : e.tt === 'quahan' ? ' !' : ''}</td><td>${dd(e.ngay)}</td><td class="num">${m(e.goc, 1)}</td><td class="num">${m(e.lai, 1)}</td><td class="num">${m(e.goc + e.lai, 1)}</td><td class="num">${m(e.du, 1)}</td>
-          ${coNhap() ? `<td>${e.tt === 'xong' ? `<button class="chip" data-ky="${T.iso(e.ngay)}" data-tt="chua_tra">Chưa ${k.nhom === 'no' ? 'trả' : 'thu'}</button>` : `<button class="chip" data-ky="${T.iso(e.ngay)}" data-tt="da_tra">Đã ${k.nhom === 'no' ? 'trả' : 'thu'}</button>`}</td>` : ''}</tr>`).join('')}</table></div>
+          ${sua ? `<td>${e.tt === 'xong' ? `<button class="chip" data-ky="${T.iso(e.ngay)}" data-tt="chua_tra">Chưa ${k.nhom === 'no' ? 'trả' : 'thu'}</button>` : `<button class="chip" data-ky="${T.iso(e.ngay)}" data-tt="da_tra">Đã ${k.nhom === 'no' ? 'trả' : 'thu'}</button>`}</td>` : ''}</tr>`).join('')}</table></div>
         <div class="hint">✓ đã ${k.nhom === 'no' ? 'trả' : 'thu'} · dòng tô màu là kỳ tới · đỏ là quá hạn${k.cach === 'goc_deu' ? ' · lãi tính theo số ngày thực tế/365 như ngân hàng' : ''}</div>` : ''}`);
     const nx = $('sheet').querySelector('tr.next'); if (nx) { const sc = $('lichTra'); sc.scrollTop = nx.offsetTop - sc.clientHeight / 2; }
-    if (coNhap()) {
+    if (sua) {
       $('bSua').onclick = () => moKhoan(k.id);
       $('bXoa').onclick = (e) => xoaHaiBuoc(e.currentTarget, () => api('DELETE', '/api/khoan/' + k.id), 'Đã xóa khoản.');
       $('sheet').querySelectorAll('[data-ky]').forEach((b) => { b.onclick = async () => {
@@ -473,7 +477,7 @@
     moSheet(`<h2 style="font-size:1.25rem">${k ? 'Sửa khoản' : 'Thêm khoản mới'}</h2>
     <form id="kf" class="pf" novalidate>
       <fieldset class="seg"><legend>Loại khoản</legend>${r('nhom', 'no', 'Đi vay', v.nhom === 'no')}${r('nhom', 'chovay', 'Cho vay', v.nhom === 'chovay')}${r('nhom', 'dautu', 'Đầu tư', v.nhom === 'dautu')}</fieldset>
-      <fieldset class="seg"><legend>Khoản của ai</legend>${D.nguoi.map((x) => r('chu', x.id, esc(x.ten), v.chu_id === x.id)).join('')}</fieldset>
+      ${coNhap() && !v.rieng_cua ? `<fieldset class="seg" id="gChu"><legend>Khoản của ai</legend>${D.nguoi.map((x) => r('chu', x.id, esc(x.ten), v.chu_id === x.id)).join('')}</fieldset>` : ''}
       <div class="f2"><div><label for="fTen">Tên khoản</label><input id="fTen" maxlength="200" value="${esc(v.ten || '')}" placeholder="Vay mua xe"></div><div><label for="fDt">Ngân hàng / người</label><input id="fDt" maxlength="200" list="dsDoiTac" autocomplete="off" value="${esc(v.doi_tac || '')}" placeholder="Gõ hoặc chọn trong danh bạ"><datalist id="dsDoiTac">${(D.doi_tac || []).map((d) => `<option value="${esc(d.ten)}"></option>`).join('')}</datalist></div></div>
       <label for="fCach">Cách trả</label><select id="fCach">${Object.keys(CACH).map((c) => `<option value="${c}" ${v.cach === c ? 'selected' : ''}>${CACH[c]}</option>`).join('')}</select>
       <div class="f2"><div><label for="fGoc">Số tiền gốc (đồng)</label><input id="fGoc" inputmode="numeric" value="${v.goc ? Number(v.goc).toLocaleString('vi-VN') : ''}" placeholder="500.000.000"></div><div><label for="fBd">Ngày bắt đầu</label><input id="fBd" type="date" value="${esc(v.bat_dau)}"></div></div>
@@ -504,7 +508,7 @@
     const doc = () => {
       const cach = $('fCach').value, dv = $('fDv').value, r0 = soThapPhan($('fLai').value);
       return {
-        nhom: document.querySelector('input[name=nhom]:checked').value, chu_id: Number(document.querySelector('input[name=chu]:checked')?.value),
+        nhom: document.querySelector('input[name=nhom]:checked').value, chu_id: Number(document.querySelector('input[name=chu]:checked')?.value || v.chu_id || D.toi.id),
         ten: $('fTen').value, doi_tac: $('fDt').value, cach, goc: soTien($('fGoc').value), bat_dau: $('fBd').value,
         ky_han: Number($('fKy').value) || 0, chu_ky: CO_CHU_KY.includes(cach) ? Number($('fChuKy').value) : 1, ngay_chot: $('fChot').value.trim() === '' ? null : Number($('fChot').value),
         lai: dv === 'thang' ? r0 * 12 : r0, don_vi_lai: dv, gia_tri: cach === 'tai_san' ? soTien($('fGt').value) : null,
@@ -641,7 +645,7 @@
   /* Tài khoản: gom đổi mật khẩu, đăng xuất vào một bảng cho gọn đầu màn điện thoại */
   function moTaiKhoan() {
     moSheet(`<div class="tk-dau">${av(toi().id)}<div><h2 style="font-size:1.25rem">${esc(toi().ten)}</h2>
-      <span class="pill ${coNhap() ? 'ok' : 'warn'}">${coNhap() ? 'Nhập liệu: thêm, sửa mọi khoản' : 'Chỉ xem'}</span></div></div>
+      <span class="pill ${coNhap() ? 'ok' : 'warn'}">${coNhap() ? 'Nhập liệu: thêm, sửa mọi khoản' : 'Xem, tự thêm khoản của mình'}</span></div></div>
       <div class="tb-khung"><div><b>Thông báo mỗi sáng</b><div class="muted" id="tbTt" style="font-size:.86rem">Đang kiểm tra…</div></div>
         <div class="acts"><button class="btn sm" id="tbBat" hidden>Bật thông báo</button><button class="btn sm ghost" id="tbThu" hidden>Gửi thử</button><button class="btn sm ghost" id="tbTat" hidden>Tắt</button></div></div>
       <button class="btn ghost" id="bMk">Đổi mật khẩu</button><button class="btn ghost" id="bOut">Đăng xuất</button>`);

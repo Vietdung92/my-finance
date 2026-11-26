@@ -1,5 +1,6 @@
 /* My Finance: máy chủ API + trang web.
- * Quyền: 'nhap' (Tú) thêm, sửa, ghi nhận mọi thứ và xem hết; 'xem' (anh Dũng) chỉ xem khoản của mình
+ * Quyền: 'nhap' (Tú) thêm, sửa, ghi nhận mọi thứ và xem hết; 'xem' (anh Dũng) xem khoản của mình,
+ * được tự thêm khoản vào ví mình. Khoản anh Dũng tự thêm (rieng_cua) thì chỉ anh Dũng sửa, xóa, ghi nhận được.
  * và các khoản mượn qua lại có mình, không sửa được gì. */
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const path = require('path');
@@ -165,24 +166,39 @@ function createApp(pool, opt = {}) {
     if (!k) throw new Loi(404, 'Không tìm thấy khoản này.');
     return k;
   };
+  // Ai được sửa / xóa / ghi nhận khoản này
+  const suaDuoc = (u, k) => (k.rieng_cua ? k.rieng_cua === u.id : u.quyen === 'nhap');
+  const canSuaKhoan = (u, k) => {
+    if (suaDuoc(u, k)) return;
+    throw new Loi(403, k.rieng_cua ? 'Khoản này do người khác tự nhập, chỉ người đó sửa được.' : 'Tài khoản này chỉ được xem, không sửa được.');
+  };
+  // Tài khoản xem chỉ được thêm khoản vào ví của chính mình
+  const docKhoanCua = async (u, body) => {
+    const kh = docKhoan(body, await nguoiIds());
+    if (u.quyen !== 'nhap') kh.chu_id = u.id;
+    return kh;
+  };
   const themDanhBa = (ten) => q('INSERT INTO doi_tac (ten) VALUES ($1) ON CONFLICT DO NOTHING', [ten]);
   const COT = ['chu_id', 'nhom', 'ten', 'doi_tac', 'goc', 'bat_dau', 'ky_han', 'chu_ky', 'cach', 'lai', 'don_vi_lai', 'doi_lai', 'ngay_chot', 'tu_dong_da_tra', 'gia_tri', 'ghi_chu'];
   const val = (kh) => COT.map((c) => (c === 'doi_lai' ? JSON.stringify(kh[c]) : kh[c]));
 
-  app.post('/api/khoan', canNhap, async (req, res, next) => {
+  app.post('/api/khoan', async (req, res, next) => {
     try {
-      const kh = docKhoan(req.body, await nguoiIds());
+      const kh = await docKhoanCua(req.u, req.body);
       await themDanhBa(kh.doi_tac);
-      const r = await q(`INSERT INTO khoan (${COT.join(',')}) VALUES (${COT.map((_, i) => '$' + (i + 1)).join(',')}) RETURNING id`, val(kh));
+      const rieng = req.u.quyen === 'nhap' ? null : req.u.id;
+      const r = await q(`INSERT INTO khoan (${COT.join(',')}, rieng_cua) VALUES (${COT.map((_, i) => '$' + (i + 1)).join(',')}, $${COT.length + 1}) RETURNING id`, [...val(kh), rieng]);
       await ghiNhatKy(req.u.id, `Thêm khoản: ${kh.ten} · ${kh.doi_tac} ${fmt(kh.goc)} (${CACH_TEN[kh.cach]})`, [req.u.id, kh.chu_id]);
       res.json({ id: r.rows[0].id });
     } catch (e) { next(e); }
   });
 
-  app.put('/api/khoan/:id', canNhap, async (req, res, next) => {
+  app.put('/api/khoan/:id', async (req, res, next) => {
     try {
       const cu = await layKhoan(req.params.id);
-      const kh = docKhoan(req.body, await nguoiIds());
+      canSuaKhoan(req.u, cu);
+      const kh = await docKhoanCua(req.u, req.body);
+      if (cu.rieng_cua) kh.chu_id = cu.chu_id; // khoản tự nhập luôn nằm trong ví người nhập
       await themDanhBa(kh.doi_tac);
       await q(`UPDATE khoan SET ${COT.map((c, i) => `${c}=$${i + 1}`).join(',')}, sua_luc=now() WHERE id=$${COT.length + 1}`, [...val(kh), cu.id]);
       const doi = [];
@@ -203,9 +219,10 @@ function createApp(pool, opt = {}) {
     } catch (e) { next(e); }
   });
 
-  app.delete('/api/khoan/:id', canNhap, async (req, res, next) => {
+  app.delete('/api/khoan/:id', async (req, res, next) => {
     try {
       const k = await layKhoan(req.params.id);
+      canSuaKhoan(req.u, k);
       await q('UPDATE khoan SET da_xoa=true, sua_luc=now() WHERE id=$1', [k.id]);
       await ghiNhatKy(req.u.id, `Xóa khoản: ${k.ten} · ${k.doi_tac} ${fmt(k.goc)}`, [req.u.id, k.chu_id]);
       res.json({ ok: true });
@@ -213,9 +230,10 @@ function createApp(pool, opt = {}) {
   });
 
   // Ghi nhận một kỳ: da_tra / chua_tra; bo = xóa ghi nhận, về mặc định
-  app.post('/api/khoan/:id/ky', canNhap, async (req, res, next) => {
+  app.post('/api/khoan/:id/ky', async (req, res, next) => {
     try {
       const k = await layKhoan(req.params.id);
+      canSuaKhoan(req.u, k);
       const kyNgay = ngay(req.body.ky_ngay, 'Ngày kỳ');
       const tt = req.body.trang_thai;
       if (!['da_tra', 'chua_tra', 'bo'].includes(tt)) throw sai('Trạng thái không hợp lệ.');
