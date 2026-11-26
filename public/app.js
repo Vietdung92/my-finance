@@ -37,6 +37,7 @@
     return j;
   }
 
+  let kyLoai = 'thang', kyBuoc = 0;
   let D = null, xemAi = null, tab = 'all', charts = {}, loc = null, phiaNguoi = 'no';
   const toi = () => D.toi;
   const coNhap = () => D.toi.quyen === 'nhap';
@@ -82,6 +83,9 @@
     ${coNhap() ? `<div class="thanh-nhap"><div class="chips" id="members" role="group" aria-label="Xem ví của ai"></div>
       <div class="acts"><button class="btn sm" id="addBtn">+ Thêm khoản</button><button class="btn sm ghost" id="addNb">+ Khoản mượn</button><button class="btn sm ghost" id="dbBtn">Danh bạ</button></div></div>` : ''}
     <div class="hero panel" id="hero"></div>
+    <div class="panel" id="pKy"><div class="ph"><h2>Theo thời gian</h2><div class="tabs ky-loai" role="tablist" id="kyLoai"></div></div>
+      <div class="ky-dieu"><button class="chip" id="kyLui" aria-label="Kỳ trước">‹</button><b id="kyTen"></b><button class="chip" id="kyToi" aria-label="Kỳ sau">›</button><button class="chip" id="kyNay">Về hiện tại</button></div>
+      <div class="ky-so" id="kySo"></div><div id="kyDs"></div></div>
     <div class="grid2">
       <div class="panel"><div class="ph"><h2>Dòng tiền 12 tháng tới</h2><span class="muted" style="font-size:.82rem">Gốc + lãi theo lịch, chưa trả</span></div>
         <div class="chartbox"><canvas id="cf" aria-label="Biểu đồ tiền thu về và phải trả 12 tháng tới"></canvas></div>
@@ -119,6 +123,10 @@
     $('bangNguoi').onclick = (e) => { const r = e.target.closest('[data-ten]'); if (!r) return; loc = r.dataset.ten; tab = 'all'; veSoLieu(); $('list').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
     $('bangNguoi').onkeydown = (e) => { if (e.key === 'Enter') { const r = e.target.closest('[data-ten]'); if (r) r.click(); } };
     $('locChip').onclick = (e) => { if (e.target.closest('[data-boloc]')) { loc = null; veSoLieu(); } };
+    $('kyLoai').onclick = (e) => { const b = e.target.closest('[data-ky]'); if (b) { kyLoai = b.dataset.ky; kyBuoc = 0; veSoLieu(); } };
+    $('kyLui').onclick = () => { kyBuoc--; veSoLieu(); };
+    $('kyToi').onclick = () => { kyBuoc++; veSoLieu(); };
+    $('kyNay').onclick = () => { kyBuoc = 0; veSoLieu(); };
     $('tabs').onclick = (e) => { const b = e.target.closest('[data-tab]'); if (b) { tab = b.dataset.tab; veSoLieu(); } };
     $('list').onclick = (e) => { const r = e.target.closest('.row'); if (r) moChiTiet(Number(r.dataset.id)); };
     $('list').onkeydown = (e) => { const r = e.target.closest('.row'); if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); moChiTiet(Number(r.dataset.id)); } };
@@ -128,6 +136,47 @@
     };
     $('tx').onclick = (e) => { const b = e.target.closest('[data-xoatx]'); if (b) xoaHaiBuoc(b, () => api('DELETE', '/api/chuyen-tra/' + b.dataset.xoatx), 'Đã xóa lần chuyển.'); };
     veSoLieu();
+  }
+
+  /* Một dòng kỳ trả: ngày, đối tác, gốc + lãi, tiền ra/vào */
+  function dongLich(k, e) {
+    const ra = k.nhom === 'no';
+    return `<div class="cday"><div class="d num">${String(e.ngay.getDate()).padStart(2, '0')}/${String(e.ngay.getMonth() + 1).padStart(2, '0')}<small>${e.ngay.toLocaleDateString('vi-VN', { weekday: 'short' })}</small></div>
+        <div><b>${esc(k.doi_tac)}</b> <span class="muted">· ${esc(k.ten)}</span> ${e.tt === 'quahan' ? '<span class="pill crit">Quá hạn</span>' : e.tt === 'xong' ? `<span class="pill ok">Đã ${ra ? 'trả' : 'thu'}</span>` : ''}<div class="muted" style="font-size:.8rem">${av(k.chu_id)} ${e.goc ? `Gốc ${m(e.goc)}` : ''}${e.goc && e.lai ? ' + ' : ''}${e.lai ? `Lãi ${m(e.lai)}` : ''}</div></div>
+        <div class="num ${ra ? 'out' : 'in'}" style="font-family:var(--f-display);font-weight:600">${ra ? '−' : '+'}${m(e.goc + e.lai)}</div></div>`;
+  }
+
+  /* Bộ lọc thời gian: tổng tiền trả / thu trong tháng, quý, năm đang chọn của ví đang xem */
+  function veKy(its, nb, ai) {
+    const today = homNay(), K = T.kyKhoang(kyLoai, today, kyBuoc), truoc = T.kyKhoang(kyLoai, today, kyBuoc - 1);
+    const r = T.tongKy(its, K.tu, K.den), rt = T.tongKy(its, truoc.tu, truoc.den);
+    $('kyLoai').innerHTML = [['thang', 'Tháng'], ['quy', 'Quý'], ['nam', 'Năm']].map(([k, t]) => `<button class="tab" role="tab" aria-selected="${kyLoai === k}" data-ky="${k}">${t}</button>`).join('');
+    $('kyTen').textContent = K.ten + (kyBuoc === 0 ? ' (hiện tại)' : '');
+    $('kyNay').hidden = kyBuoc === 0;
+    const tenTruoc = { thang: 'tháng trước', quy: 'quý trước', nam: 'năm trước' }[kyLoai];
+    const soSanh = (a, b) => {
+      if (!a && !b) return '';
+      if (!b) return `<span class="muted">${tenTruoc} 0 đ</span>`;
+      const p = Math.round((a - b) / b * 100);
+      return p === 0 ? `<span class="muted">bằng ${tenTruoc}</span>` : `<span class="muted">${p > 0 ? '▲' : '▼'} ${Math.abs(p)}% so với ${tenTruoc}</span>`;
+    };
+    // mượn qua lại: tiền thực chuyển trong kỳ
+    let nbTra = 0, nbNhan = 0;
+    nb.forEach((k) => D.chuyen_tra.filter((t) => t.noi_bo_id === k.id).forEach((t) => {
+      const d = T.pd(t.ngay); if (d < K.tu || d >= K.den) return;
+      if (k.vay_id === ai) nbTra += t.so_tien; else nbNhan += t.so_tien;
+    }));
+    const o = (lbl, v, sub, cls) => `<div class="ky-o"><div class="lbl">${lbl}</div><div class="val num ${cls}">${m(v)}</div><div class="sub">${sub}</div></div>`;
+    $('kySo').innerHTML =
+      o('<i class="dot" style="background:var(--debt)"></i>Phải trả', r.gocTra + r.laiTra, `Gốc ${m(r.gocTra)}<br>Lãi ${m(r.laiTra)}<br>Đã trả ${m(r.daTra)}`, 'out') +
+      o('<i class="dot" style="background:var(--inv)"></i>Thu về', r.gocThu + r.laiThu, `Gốc ${m(r.gocThu)}<br>Lãi ${m(r.laiThu)}<br>Đã thu ${m(r.daThu)}`, 'in') +
+      o('Lãi phải trả', r.laiTra, soSanh(r.laiTra, rt.laiTra), '') +
+      o('Lãi thu về', r.laiThu, soSanh(r.laiThu, rt.laiThu), '') +
+      (nbTra || nbNhan ? `<div class="ky-dong">Mượn qua lại trong kỳ: ${nbTra ? `đã chuyển trả <b>${m(nbTra)}</b>` : ''}${nbTra && nbNhan ? ' · ' : ''}${nbNhan ? `đã nhận <b>${m(nbNhan)}</b>` : ''}</div>` : '') +
+      (r.quaHan ? `<div class="ky-dong out"><b>${r.quaHan} kỳ quá hạn</b> trong ${K.ten.toLowerCase()}</div>` : '');
+    $('kyDs').innerHTML = r.ds.length
+      ? `<details ${r.ds.length <= 4 ? 'open' : ''}><summary class="muted" style="cursor:pointer;font-size:.88rem;padding:6px 0">Các kỳ trả trong ${K.ten.toLowerCase()} (${r.ds.length})</summary>${r.ds.map(({ k, e }) => dongLich(k, e)).join('')}</details>`
+      : `<div class="muted" style="font-size:.88rem">Không có kỳ trả nào trong ${K.ten.toLowerCase()}.</div>`;
   }
 
   function veSoLieu() {
@@ -263,12 +312,8 @@
     ev.sort((a, b) => a.e.ngay - b.e.ngay);
     let tin = 0, tout = 0; ev.forEach(({ k, e }) => { if (k.nhom === 'no') tout += e.goc + e.lai; else tin += e.goc + e.lai; });
     $('calSum').innerHTML = `Thu <b class="in">+${m(tin)}</b> · Trả <b class="out">−${m(tout)}</b>`;
-    $('cal').innerHTML = ev.map(({ k, e }) => {
-      const ra = k.nhom === 'no';
-      return `<div class="cday"><div class="d num">${String(e.ngay.getDate()).padStart(2, '0')}/${String(e.ngay.getMonth() + 1).padStart(2, '0')}<small>${e.ngay.toLocaleDateString('vi-VN', { weekday: 'short' })}</small></div>
-        <div><b>${esc(k.doi_tac)}</b> <span class="muted">· ${esc(k.ten)}</span> ${e.tt === 'quahan' ? '<span class="pill crit">Quá hạn</span>' : ''}<div class="muted" style="font-size:.8rem">${av(k.chu_id)} ${e.goc ? `Gốc ${m(e.goc)}` : ''}${e.goc && e.lai ? ' + ' : ''}${e.lai ? `Lãi ${m(e.lai)}` : ''}</div></div>
-        <div class="num ${ra ? 'out' : 'in'}" style="font-family:var(--f-display);font-weight:600">${ra ? '−' : '+'}${m(e.goc + e.lai)}</div></div>`;
-    }).join('') || '<div class="muted">Không có khoản nào đến hạn.</div>';
+    $('cal').innerHTML = ev.map(({ k, e }) => dongLich(k, e)).join('') || '<div class="muted">Không có khoản nào đến hạn.</div>';
+    veKy(its, nb, ai);
 
     /* nhật ký */
     $('log').innerHTML = '<tr><th>Lúc</th><th>Người làm</th><th style="text-align:left">Việc</th></tr>' + D.nhat_ky.map((l) => {
@@ -544,9 +589,61 @@
   function moTaiKhoan() {
     moSheet(`<div class="tk-dau">${av(toi().id)}<div><h2 style="font-size:1.25rem">${esc(toi().ten)}</h2>
       <span class="pill ${coNhap() ? 'ok' : 'warn'}">${coNhap() ? 'Nhập liệu: thêm, sửa mọi khoản' : 'Chỉ xem'}</span></div></div>
+      <div class="tb-khung"><div><b>Thông báo mỗi sáng</b><div class="muted" id="tbTt" style="font-size:.86rem">Đang kiểm tra…</div></div>
+        <div class="acts"><button class="btn sm" id="tbBat" hidden>Bật thông báo</button><button class="btn sm ghost" id="tbThu" hidden>Gửi thử</button><button class="btn sm ghost" id="tbTat" hidden>Tắt</button></div></div>
       <button class="btn ghost" id="bMk">Đổi mật khẩu</button><button class="btn ghost" id="bOut">Đăng xuất</button>`);
     $('bMk').onclick = moDoiMatKhau;
+    veThongBao();
     $('bOut').onclick = async () => { await api('POST', '/api/dang-xuat', {}); dong(); D = null; renderLogin(); };
+  }
+
+  /* ---------- thông báo đẩy ---------- */
+  const coPush = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  const laIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const moTuManHinhChinh = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const b64 = (s) => { const p = '='.repeat((4 - (s.length % 4)) % 4); const r = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, (c) => c.charCodeAt(0)); };
+  async function dangKyHienTai() {
+    if (!coPush()) return null;
+    const reg = await navigator.serviceWorker.ready;
+    return reg.pushManager.getSubscription();
+  }
+  async function veThongBao() {
+    const tt = $('tbTt'); if (!tt) return;
+    const hien = (bat, thu, tat) => { $('tbBat').hidden = !bat; $('tbThu').hidden = !thu; $('tbTat').hidden = !tat; };
+    if (!coPush()) {
+      tt.textContent = laIOS() && !moTuManHinhChinh()
+        ? 'Trên iPhone/iPad: bấm nút Chia sẻ của Safari, chọn "Thêm vào MH chính", rồi mở My Finance từ màn hình chính và bật ở đây.'
+        : 'Trình duyệt này không nhận được thông báo.';
+      hien(false, false, false); return;
+    }
+    if (Notification.permission === 'denied') { tt.textContent = 'Máy đang chặn thông báo của My Finance. Mở Cài đặt › Thông báo › My Finance để cho phép.'; hien(false, false, false); return; }
+    const sub = await dangKyHienTai().catch(() => null);
+    if (sub) { tt.textContent = 'Đang bật trên máy này. Mỗi sáng 7 giờ báo kỳ quá hạn, kỳ đến hạn trong 3 ngày tới và lãi suất sắp đổi.'; hien(false, true, true); }
+    else { tt.textContent = 'Chưa bật trên máy này.'; hien(true, false, false); }
+    $('tbBat').onclick = async (e) => {
+      const b = e.currentTarget; b.disabled = true;
+      try {
+        if (await Notification.requestPermission() !== 'granted') throw new Error('Chưa cho phép thông báo.');
+        const { khoa } = await api('GET', '/api/thong-bao');
+        const reg = await navigator.serviceWorker.ready;
+        const s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(khoa) });
+        await api('POST', '/api/thong-bao/dang-ky', s.toJSON());
+        toast('Đã bật thông báo.');
+      } catch (err) { toast(err.message || 'Không bật được thông báo.'); }
+      b.disabled = false; veThongBao();
+    };
+    $('tbThu').onclick = async (e) => {
+      const b = e.currentTarget; b.disabled = true;
+      try { const r = await api('POST', '/api/thong-bao/thu', {}); toast(r.gui ? 'Đã gửi, chờ vài giây.' : 'Không gửi được. Thử tắt rồi bật lại.'); }
+      catch (err) { toast(err.message); }
+      b.disabled = false;
+    };
+    $('tbTat').onclick = async (e) => {
+      const b = e.currentTarget; b.disabled = true;
+      try { const s = await dangKyHienTai(); if (s) { await api('POST', '/api/thong-bao/huy', { endpoint: s.endpoint }); await s.unsubscribe(); } toast('Đã tắt thông báo trên máy này.'); }
+      catch (err) { toast(err.message); }
+      b.disabled = false; veThongBao();
+    };
   }
 
   function moDoiMatKhau() {
@@ -562,5 +659,6 @@
   $('modal').onclick = (e) => { if (e.target.id === 'modal') dong(); };
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dong(); });
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => D && veSoLieu());
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   taiLai().catch(() => { if (!D) renderLogin(); });
 })();

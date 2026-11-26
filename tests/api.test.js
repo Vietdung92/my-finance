@@ -16,7 +16,8 @@ test('API', { skip: !URL_DB && 'chưa đặt TEST_DATABASE_URL' }, async (t) => 
   const h = await bcrypt.hash('matkhau-thu-123', 4);
   const [tu, dung] = (await pool.query(`INSERT INTO nguoi_dung (ten_dang_nhap, ten_hien_thi, mat_khau_hash, quyen) VALUES
     ('tu','Tú',$1,'nhap'), ('dung','Dũng',$1,'xem') RETURNING id`, [h])).rows.map((r) => r.id);
-  const srv = createApp(pool, { jwtSecret: 'x'.repeat(40), secureCookie: false }).listen(0);
+  const daGui = [];
+  const srv = createApp(pool, { jwtSecret: 'x'.repeat(40), secureCookie: false, guiDay: async (sub, data) => { if (/het-han/.test(sub.endpoint)) { const e = new Error('gone'); e.statusCode = 410; throw e; } daGui.push({ endpoint: sub.endpoint, ...JSON.parse(data) }); } }).listen(0);
   const base = `http://127.0.0.1:${srv.address().port}`;
   t.after(async () => { srv.close(); await pool.end(); });
 
@@ -113,6 +114,32 @@ test('API', { skip: !URL_DB && 'chưa đặt TEST_DATABASE_URL' }, async (t) => 
     tt = await T('GET', '/api/du-lieu');
     assert.ok(!tt.j.doi_tac.some((x) => x.ten === 'Anh Hùng'));
     assert.equal((await T('POST', '/api/doi-tac', { ten: 'Anh Hùng' })).s, 200, 'bỏ rồi thêm lại được');
+  });
+
+  await t.test('thông báo: đăng ký từng máy, gửi thử đúng người, máy đã gỡ thì tự xóa', async () => {
+    const k = await D('GET', '/api/thong-bao');
+    assert.equal(k.s, 200); assert.ok(k.j.khoa.length > 40, 'có khóa VAPID');
+    assert.equal((await T('GET', '/api/thong-bao')).j.khoa, k.j.khoa, 'khóa giữ nguyên giữa các lần gọi');
+    const sub = (ep) => ({ endpoint: 'https://push.example.com/' + ep, keys: { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) } });
+    assert.equal((await D('POST', '/api/thong-bao/dang-ky', sub('may-dung'))).s, 200, 'người chỉ xem cũng bật được');
+    assert.equal((await T('POST', '/api/thong-bao/dang-ky', sub('may-tu'))).s, 200);
+    assert.equal((await T('POST', '/api/thong-bao/dang-ky', sub('het-han-tu'))).s, 200);
+    assert.equal((await T('POST', '/api/thong-bao/dang-ky', { endpoint: 'http://x', keys: {} })).s, 400);
+    assert.equal((await D('GET', '/api/thong-bao')).j.so_may, 1);
+
+    const rT = await T('POST', '/api/thong-bao/thu', {});
+    assert.equal(rT.j.gui, 1, 'máy hết hạn không tính');
+    const tinTu = daGui.find((x) => x.endpoint.endsWith('may-tu'));
+    assert.match(tinTu.title, /quá hạn/, 'khoản cho vay của Tú chưa ghi nhận các quý trước');
+    assert.match(tinTu.body, /\[Tú\] Quá hạn \d+ ngày: thu Anh Tuấn/);
+    assert.equal((await T('GET', '/api/thong-bao')).j.so_may, 1, 'đăng ký hết hạn đã bị xóa');
+
+    await D('POST', '/api/thong-bao/thu', {});
+    const tinDung = daGui.find((x) => x.endpoint.endsWith('may-dung'));
+    assert.ok(tinDung && !/Anh Tuấn/.test(tinDung.body), 'anh Dũng không nhận tin về ví của Tú');
+
+    assert.equal((await D('POST', '/api/thong-bao/huy', { endpoint: sub('may-dung').endpoint })).s, 200);
+    assert.equal((await D('GET', '/api/thong-bao')).j.so_may, 0);
   });
 
   await t.test('đổi mật khẩu đăng xuất phiên cũ', async () => {

@@ -11,6 +11,8 @@
       { s: '#addBtn', t: 'Sau đó bấm + Thêm khoản để nhập từng khoản vay, cho vay, đầu tư.' },
       { s: '#addNb', t: 'Tiền mượn qua lại giữa anh Dũng và Tú thì bấm + Khoản mượn.' },
       { s: '#hero', t: 'Tổng quan: tài sản ròng, nợ còn lại, tiền cho vay và đầu tư, lãi tháng này.' },
+      { s: '#kyLoai', t: 'Chọn xem theo tháng, quý hay năm: phải trả, thu về, lãi bao nhiêu.' },
+      { s: '.ky-dieu', t: 'Bấm ‹ › để lùi, tiến từng kỳ. Bấm Các kỳ trả để xem chi tiết.' },
       { s: '#cf', t: 'Dòng tiền 12 tháng tới. Cột xanh là tiền thu về, cột cam là tiền phải trả. Chạm vào cột để xem số.' },
       { s: '#alerts', t: 'Những việc cần chú ý: kỳ quá hạn, kỳ sắp đến hạn, sắp hết ưu đãi lãi.' },
       { s: '#tabs', t: 'Lọc danh sách theo loại: đang nợ, cho vay, đầu tư.' },
@@ -23,6 +25,8 @@
     ],
     chinh_xem: [
       { s: '#hero', t: 'Tổng quan: tài sản ròng, nợ còn lại, tiền cho vay và đầu tư, lãi tháng này.' },
+      { s: '#kyLoai', t: 'Chọn xem theo tháng, quý hay năm: phải trả, thu về, lãi bao nhiêu.' },
+      { s: '.ky-dieu', t: 'Bấm ‹ › để lùi, tiến từng kỳ. Bấm Các kỳ trả để xem chi tiết.' },
       { s: '#cf', t: 'Dòng tiền 12 tháng tới. Cột xanh là tiền thu về, cột cam là tiền phải trả. Chạm vào cột để xem số.' },
       { s: '#alerts', t: 'Những việc cần chú ý: kỳ quá hạn, kỳ sắp đến hạn, sắp hết ưu đãi lãi.' },
       { s: '#tabs', t: 'Lọc danh sách theo loại: đang nợ, cho vay, đầu tư.' },
@@ -82,6 +86,8 @@
       { s: '[data-dbbo]', t: 'Bỏ khỏi danh bạ: bấm 2 lần. Các khoản đã nhập vẫn giữ nguyên.' },
     ],
     taikhoan: [
+      { s: '#tbBat', t: 'Bật để mỗi sáng 7 giờ nhận thông báo kỳ sắp đến hạn, quá hạn.' },
+      { s: '#tbThu', t: 'Gửi thử một thông báo để xem máy đã nhận được chưa.' },
       { s: '#bMk', t: 'Đổi mật khẩu đăng nhập.' },
       { s: '#bOut', t: 'Đăng xuất khỏi máy này.' },
     ],
