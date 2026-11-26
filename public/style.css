@@ -126,3 +126,17 @@ td .chip{display:inline-flex;padding:2px 8px;font-size:.76rem}
 .pf textarea{font:500 1rem var(--f-body);padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);width:100%;min-height:60px}
 .pf input[type=checkbox]{width:auto}
 .check{display:flex;gap:8px;align-items:flex-start;font-weight:500!important}
+
+/* nút ? và hướng dẫn từng bước */
+.hd-nut{width:34px;height:34px;flex:none;border-radius:50%;border:2px solid #f47230;background:var(--panel);color:#f47230;font:700 1.05rem var(--f-display);cursor:pointer;line-height:1}
+.hd-nut:hover{background:#f47230;color:#fff}
+.sheet-top{display:flex;justify-content:flex-end;align-items:center;gap:8px}
+.sheet-top .close{align-self:auto}
+.hd-lop{position:fixed;inset:0;z-index:100}
+.hd-khoanh{position:fixed;border:3px solid #f47230;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,.5);pointer-events:none;transition:all .2s ease}
+.hd-the{position:fixed;background:var(--panel);color:var(--ink);border-radius:14px;padding:14px 16px;box-shadow:0 10px 30px rgba(0,0,0,.3);border-top:4px solid #f47230}
+.hd-dem{font-size:.78rem;color:#f47230;font-weight:700;letter-spacing:.02em}
+.hd-chu{font-size:.98rem;margin:4px 0 12px;line-height:1.45}
+.hd-nut-hang{display:flex;gap:8px;align-items:center}
+.hd-nut-hang .btn:disabled{opacity:.4;cursor:default}
+@media (prefers-reduced-motion:reduce){.hd-khoanh{transition:none}}

@@ -75,7 +75,7 @@
     <div class="top">
       <div><h1>My Finance</h1><div class="muted" style="font-size:.85rem">Số liệu tính đến hôm nay, ${dd(homNay())}</div></div>
       <div class="me">${av(toi().id)}<b>${esc(toi().ten)}</b><span class="pill ${coNhap() ? 'ok' : 'warn'}">${coNhap() ? 'Nhập liệu' : 'Chỉ xem'}</span>
-        <button class="btn ghost sm" id="bMk">Đổi mật khẩu</button><button class="btn ghost sm" id="bOut">Đăng xuất</button></div>
+        <button class="hd-nut" id="bHd" aria-label="Hướng dẫn từng bước" title="Hướng dẫn từng bước">?</button><button class="btn ghost sm" id="bMk">Đổi mật khẩu</button><button class="btn ghost sm" id="bOut">Đăng xuất</button></div>
     </div>
     ${coNhap() ? '<div class="chips" id="members" role="group" aria-label="Xem số liệu của ai"></div>' : ''}
     <div class="hero panel" id="hero"></div>
@@ -106,6 +106,7 @@
     $('app').innerHTML = khung();
     $('bOut').onclick = async () => { await api('POST', '/api/dang-xuat', {}); D = null; renderLogin(); };
     $('bMk').onclick = moDoiMatKhau;
+    $('bHd').onclick = () => HuongDan.mo(coNhap());
     if (coNhap()) {
       $('addBtn').onclick = () => moKhoan(null);
       $('dbBtn').onclick = moDanhBa;
@@ -299,7 +300,10 @@
   }
 
   /* ---------- khung nổi ---------- */
-  function moSheet(html) { $('sheet').innerHTML = `<button class="close" id="x">Đóng</button>${html}`; $('modal').hidden = false; $('x').onclick = dong; }
+  function moSheet(html) {
+    $('sheet').innerHTML = `<div class="sheet-top"><button class="hd-nut" id="xHd" aria-label="Hướng dẫn từng bước" title="Hướng dẫn từng bước">?</button><button class="close" id="x">Đóng</button></div>${html}`;
+    $('modal').hidden = false; $('x').onclick = dong; $('xHd').onclick = () => HuongDan.mo(coNhap());
+  }
   function dong() { $('modal').hidden = true; }
   function toast(t) { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(el._t); el._t = setTimeout(() => { el.hidden = true; }, 4500); }
   function oTien(el) { el.addEventListener('input', () => { const v = soTien(el.value); el.value = v ? v.toLocaleString('vi-VN') : ''; }); }
