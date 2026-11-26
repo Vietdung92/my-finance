@@ -55,13 +55,13 @@ test('API', { skip: !URL_DB && 'chưa đặt TEST_DATABASE_URL' }, async (t) => 
     assert.equal(r2.s, 400);
   });
 
-  await t.test('Dũng chỉ xem: thấy khoản của mình, không thấy khoản của Tú, không sửa được', async () => {
+  await t.test('Dũng: thấy khoản của mình, không thấy khoản của Tú, không sửa được khoản Tú nhập', async () => {
     const d = await D('GET', '/api/du-lieu');
     assert.deepEqual(d.j.khoan.map((k) => k.id), [khDung]);
     assert.equal(d.j.khoan[0].bat_dau, '2025-03-15');
     assert.deepEqual(d.j.khoan[0].doi_lai, [{ tu: '2027-03-15', lai: 10.5 }]);
     assert.equal(d.j.toi.quyen, 'xem');
-    for (const [m, u] of [['POST', '/api/khoan'], ['PUT', `/api/khoan/${khDung}`], ['DELETE', `/api/khoan/${khDung}`], ['POST', `/api/khoan/${khDung}/ky`], ['POST', '/api/noi-bo']]) {
+    for (const [m, u] of [['PUT', `/api/khoan/${khDung}`], ['DELETE', `/api/khoan/${khDung}`], ['POST', `/api/khoan/${khDung}/ky`], ['POST', '/api/noi-bo']]) {
       assert.equal((await D(m, u, {})).s, 403, `${m} ${u}`);
     }
     const all = await T('GET', '/api/du-lieu');
@@ -142,6 +142,29 @@ test('API', { skip: !URL_DB && 'chưa đặt TEST_DATABASE_URL' }, async (t) => 
     assert.equal((await D('GET', '/api/thong-bao')).j.so_may, 0);
   });
 
+  await t.test('Dũng tự thêm khoản: luôn vào ví Dũng, chỉ Dũng sửa, xóa, ghi nhận được', async () => {
+    const than = { chu_id: tu, nhom: 'chovay', ten: 'Cho bạn mượn', doi_tac: 'Anh Bình', goc: 50e6, bat_dau: '2026-06-01', ky_han: 12, cach: 'lai_thang', lai: 12 };
+    const a = await D('POST', '/api/khoan', than);
+    assert.equal(a.s, 200, JSON.stringify(a.j));
+    const id = a.j.id;
+    const k = (await D('GET', '/api/du-lieu')).j.khoan.find((x) => x.id === id);
+    assert.equal(k.chu_id, dung, 'gửi chu_id của Tú vẫn vào ví Dũng');
+    assert.equal(k.rieng_cua, dung);
+    assert.ok((await T('GET', '/api/du-lieu')).j.khoan.some((x) => x.id === id), 'Tú vẫn thấy khoản này');
+    // Tú không sửa, xóa, ghi nhận được
+    assert.equal((await T('PUT', `/api/khoan/${id}`, { ...than, lai: 10 })).s, 403);
+    assert.equal((await T('POST', `/api/khoan/${id}/ky`, { ky_ngay: '2026-07-01', trang_thai: 'da_tra' })).s, 403);
+    assert.equal((await T('DELETE', `/api/khoan/${id}`)).s, 403);
+    // Dũng làm được, và không chuyển được sang ví Tú
+    assert.equal((await D('POST', `/api/khoan/${id}/ky`, { ky_ngay: '2026-07-01', trang_thai: 'da_tra' })).s, 200);
+    assert.equal((await D('PUT', `/api/khoan/${id}`, { ...than, lai: 10 })).s, 200);
+    const k2 = (await T('GET', '/api/du-lieu')).j.khoan.find((x) => x.id === id);
+    assert.equal(Number(k2.lai), 10); assert.equal(k2.chu_id, dung);
+    // Dũng vẫn không sửa được khoản Tú nhập
+    assert.equal((await D('PUT', `/api/khoan/${khDung}`, { ...than, chu_id: dung })).s, 403);
+    assert.equal((await D('DELETE', `/api/khoan/${id}`)).s, 200);
+  });
+
   await t.test('đổi mật khẩu đăng xuất phiên cũ', async () => {
     const r = await D('POST', '/api/doi-mat-khau', { cu: 'matkhau-thu-123', moi: 'matkhau-moi-456' });
     assert.equal(r.s, 200);
@@ -154,4 +177,5 @@ test('API', { skip: !URL_DB && 'chưa đặt TEST_DATABASE_URL' }, async (t) => 
     const xoa = await fetch(base + '/api/doi-tac/999999', { method: 'DELETE', headers: { cookie: cookies.tu } });
     assert.equal(xoa.status, 404, 'lệnh xóa không có nội dung vẫn tới được máy chủ');
   });
+
 });
