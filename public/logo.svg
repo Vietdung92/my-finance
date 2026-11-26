@@ -3,20 +3,19 @@
     <linearGradient id="vang" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#ffe08a"/><stop offset=".5" stop-color="#f2b632"/><stop offset="1" stop-color="#c98a12"/>
     </linearGradient>
-    <linearGradient id="nen" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#138a6d"/><stop offset="1" stop-color="#0b5544"/>
+    <linearGradient id="vien" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f6c64e"/><stop offset="1" stop-color="#a8700c"/>
     </linearGradient>
   </defs>
-  <circle cx="256" cy="256" r="256" fill="url(#nen)"/>
-  <circle cx="256" cy="256" r="190" fill="#9a6a0c"/>
-  <circle cx="256" cy="250" r="190" fill="url(#vang)"/>
-  <circle cx="256" cy="250" r="190" fill="none" stroke="#b07a10" stroke-width="10" stroke-dasharray="4 10"/>
-  <circle cx="256" cy="250" r="160" fill="none" stroke="#fff3c4" stroke-opacity=".7" stroke-width="5"/>
-  <g fill="#7a4d00" transform="translate(8 -10)">
+  <circle cx="256" cy="256" r="256" fill="url(#vien)"/>
+  <circle cx="256" cy="256" r="244" fill="none" stroke="#8a5a06" stroke-width="16" stroke-dasharray="5 11"/>
+  <circle cx="256" cy="256" r="222" fill="url(#vang)"/>
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#fff3c4" stroke-opacity=".75" stroke-width="6"/>
+  <g fill="#7a4d00" transform="translate(256 262) scale(1.25) translate(-254 -251)">
     <circle cx="232" cy="262" r="58" fill="none" stroke="#7a4d00" stroke-width="30"/>
     <rect x="276" y="148" width="30" height="174" rx="4"/>
     <rect x="250" y="168" width="82" height="20" rx="4"/>
     <rect x="172" y="348" width="164" height="24" rx="6"/>
   </g>
-  <path d="M120 170 A160 160 0 0 1 220 96" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="12" stroke-linecap="round"/>
+  <path d="M96 176 A180 180 0 0 1 210 80" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="14" stroke-linecap="round"/>
 </svg>

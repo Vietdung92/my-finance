@@ -7,18 +7,19 @@
   const MAN = {
     chinh_nhap: [
       { s: '#members', t: 'Mỗi người một ví riêng. Chọn xem ví của anh Dũng hay ví của Tú.' },
+      { s: '#dbBtn', t: 'Mới bắt đầu thì vào Danh bạ trước, thêm tên ngân hàng và người cho vay, người vay.' },
+      { s: '#addBtn', t: 'Sau đó bấm + Thêm khoản để nhập từng khoản vay, cho vay, đầu tư.' },
+      { s: '#addNb', t: 'Tiền mượn qua lại giữa anh Dũng và Tú thì bấm + Khoản mượn.' },
       { s: '#hero', t: 'Tổng quan: tài sản ròng, nợ còn lại, tiền cho vay và đầu tư, lãi tháng này.' },
       { s: '#cf', t: 'Dòng tiền 12 tháng tới. Cột xanh là tiền thu về, cột cam là tiền phải trả. Chạm vào cột để xem số.' },
       { s: '#alerts', t: 'Những việc cần chú ý: kỳ quá hạn, kỳ sắp đến hạn, sắp hết ưu đãi lãi.' },
-      { s: '#dbBtn', t: 'Mới bắt đầu thì vào Danh bạ trước, thêm tên ngân hàng và người cho vay, người vay.' },
-      { s: '#addBtn', t: 'Sau đó bấm + Thêm khoản để nhập từng khoản vay, cho vay, đầu tư.' },
       { s: '#tabs', t: 'Lọc danh sách theo loại: đang nợ, cho vay, đầu tư.' },
       { s: '#list', t: 'Bấm vào một khoản để xem lịch trả và ghi nhận kỳ đã trả.' },
-      { s: '#addNb', t: 'Tiền mượn qua lại giữa anh Dũng và Tú thì thêm ở đây.' },
       { s: '#owes', t: 'Mỗi lần chuyển tiền trả nhau, bấm Ghi nhận chuyển trả và chọn trả gốc hay trả lãi.' },
       { s: '#pNguoi', t: 'Nợ theo từng người. Bấm một người để chỉ xem các khoản của người đó.' },
       { s: '#cal', t: 'Lịch các kỳ đến hạn trong 60 ngày tới.' },
       { s: '#log', t: 'Nhật ký: ai thêm, sửa, ghi nhận gì và lúc nào.' },
+      { s: '#bTk', t: 'Bấm vào tên mình để đổi mật khẩu hoặc đăng xuất.' },
     ],
     chinh_xem: [
       { s: '#hero', t: 'Tổng quan: tài sản ròng, nợ còn lại, tiền cho vay và đầu tư, lãi tháng này.' },
@@ -30,7 +31,7 @@
       { s: '#pNguoi', t: 'Nợ theo từng người. Bấm một người để chỉ xem các khoản của người đó.' },
       { s: '#cal', t: 'Lịch các kỳ đến hạn trong 60 ngày tới.' },
       { s: '#log', t: 'Nhật ký: Tú thêm, sửa, ghi nhận gì và lúc nào.' },
-      { s: '#bMk', t: 'Đổi mật khẩu của anh ở đây.' },
+      { s: '#bTk', t: 'Bấm vào tên mình để đổi mật khẩu hoặc đăng xuất.' },
     ],
     khoan: [
       { s: '#kf fieldset:nth-of-type(1)', t: 'Chọn loại khoản: Đi vay, Cho vay hay Đầu tư.' },
@@ -80,6 +81,10 @@
       { s: '[data-dbsua]', t: 'Sửa tên: các khoản đang dùng tên cũ tự đổi theo.' },
       { s: '[data-dbbo]', t: 'Bỏ khỏi danh bạ: bấm 2 lần. Các khoản đã nhập vẫn giữ nguyên.' },
     ],
+    taikhoan: [
+      { s: '#bMk', t: 'Đổi mật khẩu đăng nhập.' },
+      { s: '#bOut', t: 'Đăng xuất khỏi máy này.' },
+    ],
     matkhau: [
       { s: '#mCu', t: 'Nhập mật khẩu đang dùng.' },
       { s: '#mMoi', t: 'Nhập mật khẩu mới.' },
@@ -96,6 +101,7 @@
       if (document.getElementById('pf')) return 'chuyentra';
       if (document.getElementById('dbf')) return 'danhba';
       if (document.getElementById('mf')) return 'matkhau';
+      if (document.getElementById('bOut')) return 'taikhoan';
       return 'chitiet';
     }
     return coNhap ? 'chinh_nhap' : 'chinh_xem';
