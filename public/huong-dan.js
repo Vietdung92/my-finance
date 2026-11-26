@@ -7,14 +7,14 @@
   const MAN = {
     chinh_nhap: [
       { s: '#members', t: 'Mỗi người một ví riêng. Chọn xem ví của anh Dũng hay ví của Tú.' },
+      { s: '#dbBtn', t: 'Mới bắt đầu thì vào Danh bạ trước, thêm tên ngân hàng và người cho vay, người vay.' },
+      { s: '#addBtn', t: 'Sau đó bấm + Thêm khoản để nhập từng khoản vay, cho vay, đầu tư.' },
+      { s: '#addNb', t: 'Tiền mượn qua lại giữa anh Dũng và Tú thì bấm + Khoản mượn.' },
       { s: '#hero', t: 'Tổng quan: tài sản ròng, nợ còn lại, tiền cho vay và đầu tư, lãi tháng này.' },
       { s: '#cf', t: 'Dòng tiền 12 tháng tới. Cột xanh là tiền thu về, cột cam là tiền phải trả. Chạm vào cột để xem số.' },
       { s: '#alerts', t: 'Những việc cần chú ý: kỳ quá hạn, kỳ sắp đến hạn, sắp hết ưu đãi lãi.' },
-      { s: '#dbBtn', t: 'Mới bắt đầu thì vào Danh bạ trước, thêm tên ngân hàng và người cho vay, người vay.' },
-      { s: '#addBtn', t: 'Sau đó bấm + Thêm khoản để nhập từng khoản vay, cho vay, đầu tư.' },
       { s: '#tabs', t: 'Lọc danh sách theo loại: đang nợ, cho vay, đầu tư.' },
       { s: '#list', t: 'Bấm vào một khoản để xem lịch trả và ghi nhận kỳ đã trả.' },
-      { s: '#addNb', t: 'Tiền mượn qua lại giữa anh Dũng và Tú thì thêm ở đây.' },
       { s: '#owes', t: 'Mỗi lần chuyển tiền trả nhau, bấm Ghi nhận chuyển trả và chọn trả gốc hay trả lãi.' },
       { s: '#pNguoi', t: 'Nợ theo từng người. Bấm một người để chỉ xem các khoản của người đó.' },
       { s: '#cal', t: 'Lịch các kỳ đến hạn trong 60 ngày tới.' },

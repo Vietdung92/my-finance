@@ -152,3 +152,7 @@ td .chip{display:inline-flex;padding:2px 8px;font-size:.76rem}
 .login .logo-lon{width:88px;height:88px;align-self:center}
 .login h1{text-align:center}
 .login form>.muted{text-align:center}
+
+/* thanh nút nhập liệu trên đầu màn */
+.thanh-nhap{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+@media (max-width:560px){.thanh-nhap .acts{width:100%}.thanh-nhap .acts .btn{flex:1}}

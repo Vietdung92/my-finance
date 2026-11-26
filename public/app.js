@@ -79,7 +79,8 @@
       <div class="me">${av(toi().id)}<b>${esc(toi().ten)}</b><span class="pill ${coNhap() ? 'ok' : 'warn'}">${coNhap() ? 'Nhập liệu' : 'Chỉ xem'}</span>
         <button class="hd-nut" id="bHd" aria-label="Hướng dẫn từng bước" title="Hướng dẫn từng bước">?</button><button class="btn ghost sm" id="bMk">Đổi mật khẩu</button><button class="btn ghost sm" id="bOut">Đăng xuất</button></div>
     </div>
-    ${coNhap() ? '<div class="chips" id="members" role="group" aria-label="Xem số liệu của ai"></div>' : ''}
+    ${coNhap() ? `<div class="thanh-nhap"><div class="chips" id="members" role="group" aria-label="Xem ví của ai"></div>
+      <div class="acts"><button class="btn sm" id="addBtn">+ Thêm khoản</button><button class="btn sm ghost" id="addNb">+ Khoản mượn</button><button class="btn sm ghost" id="dbBtn">Danh bạ</button></div></div>` : ''}
     <div class="hero panel" id="hero"></div>
     <div class="grid2">
       <div class="panel"><div class="ph"><h2>Dòng tiền 12 tháng tới</h2><span class="muted" style="font-size:.82rem">Gốc + lãi theo lịch, chưa trả</span></div>
@@ -88,11 +89,11 @@
       <div class="panel"><div class="ph"><h2>Cần chú ý</h2><span class="muted" id="alertCount" style="font-size:.82rem"></span></div><div class="alerts" id="alerts"></div></div>
     </div>
     <div class="grid2">
-      <div class="panel"><div class="ph"><h2>Các khoản</h2>${coNhap() ? '<div class="acts"><button class="btn sm ghost" id="dbBtn">Danh bạ</button><button class="btn sm" id="addBtn">+ Thêm khoản</button></div>' : '<span class="muted" style="font-size:.82rem">Bấm vào từng khoản để xem lịch trả</span>'}</div>
+      <div class="panel"><div class="ph"><h2>Các khoản</h2><span class="muted" style="font-size:.82rem">Bấm vào từng khoản để xem lịch trả</span></div>
         <div class="tabs" role="tablist" id="tabs"></div><div id="locChip"></div><div class="list" id="list"></div></div>
       <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
         <div class="panel"><div class="ph"><h2>Cơ cấu</h2></div><div class="chartbox" style="height:210px"><canvas id="mix" aria-label="Cơ cấu nợ, cho vay, đầu tư"></canvas></div><div class="legend" id="mixLegend"></div></div>
-        <div class="panel"><div class="ph"><h2>Mượn qua lại giữa 2 người</h2>${coNhap() ? '<button class="btn sm ghost" id="addNb">+ Khoản mượn</button>' : ''}</div>
+        <div class="panel"><div class="ph"><h2>Mượn qua lại giữa 2 người</h2></div>
           <div class="flow" id="owes"></div>
           <details style="margin-top:10px"><summary class="muted" style="cursor:pointer;font-size:.86rem">Lịch sử chuyển trả</summary><div class="scroll" style="margin-top:8px"><table id="tx"></table></div></details></div>
       </div>
