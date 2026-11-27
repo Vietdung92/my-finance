@@ -17,7 +17,7 @@ const ngayVN = (d = new Date()) => {
 const tien = (v) => {
   const a = Math.abs(v);
   if (a >= 1e9) return (a / 1e9).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + ' tỷ';
-  if (a >= 1e6) return (a / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' tr';
+  if (a >= 1e6) return (a / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + ' tr';
   return Math.round(a).toLocaleString('vi-VN') + ' đ';
 };
 const ddmm = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
