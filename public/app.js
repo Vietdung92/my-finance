@@ -10,7 +10,7 @@
     if (full) return Math.round(v).toLocaleString('vi-VN') + ' đ';
     const a = Math.abs(v), s = v < 0 ? '−' : '';
     if (a >= 1e9) return s + (a / 1e9).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + ' tỷ';
-    if (a >= 1e6) return s + (a / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' tr';
+    if (a >= 1e6) return s + (a / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + ' tr';
     return s + Math.round(a).toLocaleString('vi-VN') + ' đ';
   }
   const dd = (d) => T.pd(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -575,7 +575,7 @@
       if (!x.goc || !x.ky_han || !x.bat_dau || (x.cach !== 'khong_lai' && !Number.isFinite(x.lai))) { el.innerHTML = '<span class="muted">Nhập số tiền, ngày bắt đầu, kỳ hạn và lãi suất để xem trước kỳ trả đầu tiên.</span>'; return; }
       const l = T.lichTra(x); if (!l.length) { el.textContent = ''; return; }
       const f = l[0], tl = l.reduce((a, e) => a + e.lai, 0);
-      el.innerHTML = `Kỳ đầu <b>${dd(f.ngay)}</b>: <b class="num">${m(f.goc + f.lai, 1)}</b> (gốc ${m(f.goc)}, lãi ${m(f.lai)}) · ${l.length} kỳ · tổng lãi <b class="num">${m(tl)}</b>. Đối chiếu với hợp đồng trước khi lưu.`;
+      el.innerHTML = `Kỳ đầu <b>${dd(f.ngay)}</b>: <b class="num">${m(f.goc + f.lai, 1)}</b> (gốc ${m(f.goc, 1)}, lãi ${m(f.lai, 1)}) · ${l.length} kỳ · tổng lãi <b class="num">${m(tl)}</b>. Đối chiếu với hợp đồng trước khi lưu.`;
     }
     $('kf').querySelectorAll('input,select,textarea').forEach((el) => { el.addEventListener('input', xemTruoc); el.addEventListener('change', xemTruoc); });
     xemTruoc();
